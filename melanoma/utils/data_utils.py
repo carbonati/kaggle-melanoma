@@ -27,7 +27,7 @@ def load_image(root, image_id, bgr2rgb=True):
 
 
 def get_img_stats(img):
-    x = (img.reshape(-1, 3) - 255).astype(np.float32) / 255.
+    x = img.reshape(-1, 3).astype(np.float32) / 255.
     meta = {
         'mean': list(x.mean(axis=0)),
         'std': list(x.std(axis=0)),

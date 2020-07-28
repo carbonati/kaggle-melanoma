@@ -3,11 +3,11 @@ input:
   root: /home/carbonati/workspace/kaggle-melanoma/data/jpeg
 
 output:
-  output_dir: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020
+  output_dir: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020_meta_fix
 
 data:
-  size: 224
-  interpolation: 0
+  size: 300
+  interpolation: 4
   quality: 100
   img_format: jpg
 
