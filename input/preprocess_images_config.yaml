@@ -7,7 +7,7 @@ output:
 
 data:
   size: 224
-  interpolation: 4
+  interpolation: 0
   quality: 100
   img_format: jpg
 

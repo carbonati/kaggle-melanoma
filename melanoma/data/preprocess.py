@@ -29,8 +29,8 @@ def preprocess_images(root,
         test_output_path = os.path.join(base_output_dir, 'test.zip')
     else:
         base_output_dir = os.path.join(output_dir, f'original_{interpolation}')
-        train_output_dir = None
-        test_output_dir = None
+        train_output_path = None
+        test_output_path = None
 
     meta_dir = os.path.join(base_output_dir, 'metadata')
     if not os.path.exists(meta_dir):

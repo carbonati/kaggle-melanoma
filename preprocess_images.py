@@ -7,6 +7,7 @@ from melanoma.data.preprocess import preprocess_images
 
 def main(args):
     config = load_config_from_yaml(args.config_filepath)
+    print('Preprocessing images.')
     preprocess_images(**config['input'],
                       **config['output'],
                       **config['data'],
