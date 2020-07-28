@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 
 from utils import data_utils
 
+
 class MelanomaDataset(Dataset):
     """Melanoma dataset."""
     def __init__(self,

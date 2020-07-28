@@ -4,6 +4,7 @@ import pandas as pd
 import cv2
 import pickle
 from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
 
 def load_data(filepath,
@@ -153,3 +154,44 @@ def get_df_agg(df, colname, value, how='count', index='patient_id'):
         raise ValueError(f'Unrecognized `how`')
 
     return df_agg
+
+
+def stratify_batches(indices,
+                     labels,
+                     batch_size,
+                     drop_last=False,
+                     random_state=6969):
+    """Returns a list of indices stratified by `labels` where each stratification is
+    of size `bathc_size`
+    """
+    strat_indices = []
+
+    num_batches = int(np.ceil(len(indices) / batch_size))
+    remainder = len(indices) % batch_size
+    num_batches = num_batches - 1 if remainder > 0 else num_batches
+
+    if remainder > 0:
+        remainder_indices = []
+        remainder_labels = []
+        rs = np.random.RandomState(5)
+        last_idx = rs.choice(indices, size=remainder, replace=False)
+        for idx in indices:
+            if idx not in last_idx:
+                remainder_indices.append(idx)
+                remainder_labels.append(labels[idx])
+    else:
+        remainder_indices = indices
+        remainder_labels = labels
+        last_idx = []
+
+    skf = StratifiedKFold(n_splits=num_batches,
+                          shuffle=True,
+                          random_state=random_state)
+
+    for _, batch_idx in skf.split(remainder_indices, remainder_labels):
+        strat_indices.extend(batch_idx)
+
+    if not drop_last:
+        strat_indices.extend(last_idx)
+
+    return strat_indices
