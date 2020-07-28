@@ -75,3 +75,28 @@ def preprocess_images(root,
                 with open(os.path.join(meta_dir, f'{image_id}.json'), 'w') as f:
                     json.dump(str(meta), f)
 
+    print(f'Saved output to {base_output_dir}')
+
+
+def generate_img_stats(df, meta_dir, target_col='target', name=None):
+    img_mean = np.zeros(3, np.float32)
+    img_var = np.zeros(3, np.float32)
+    num_samples = len(df)
+
+    for image_id in tqdm(df['image_name'].values, total=num_samples, desc=name):
+        with open(os.path.join(meta_dir, f'{image_id}.json'), 'r') as f:
+            meta = eval(json.load(f))
+        img_mean += meta['mean']
+        img_var += np.asarray(meta['std'])**2
+
+    img_mean /= num_samples
+    img_var /= num_samples
+    img_stats = {
+        'n': num_samples,
+        'prior': df[target_col].mean().astype(np.float32),
+        'mean': list(np.asarray(img_mean)),
+        'std': list(np.asarray(np.sqrt(img_var))),
+        'max_pixel_value': 1
+    }
+    return img_stats
+

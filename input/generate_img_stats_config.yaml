@@ -1,0 +1,9 @@
+input:
+  train: /home/carbonati/workspace/kaggle-melanoma/data/train.csv
+  duplicates: /home/carbonati/workspace/kaggle-melanoma/data/sus/2020_Challenge_duplicates.csv
+  cv_folds: /home/carbonati/workspace/kaggle-melanoma/data/cv_folds/cv_folds_20200728_0112
+  image_dir: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020_meta_fix/224x224_jpg_100_4
+
+data:
+  stratify:
+    - anatom_site_general_challenge

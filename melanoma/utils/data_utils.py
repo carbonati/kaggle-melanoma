@@ -2,12 +2,14 @@ import os
 import numpy as np
 import pandas as pd
 import cv2
+import pickle
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.preprocessing import KBinsDiscretizer
 
 
 def load_data(filepath,
-              duplicate_path=None):
+              duplicate_path=None,
+              cv_folds_dir=None):
     df_mela = pd.read_csv(filepath)
 
     # need to add more logic here for the test set
@@ -15,6 +17,10 @@ def load_data(filepath,
         df_dupes = pd.read_csv(duplicate_path)
         image_ids_duped = df_dupes['ISIC_id_paired'].tolist()
         df_mela = df_mela.loc[~df_mela['image_name'].isin(image_ids_duped)].reset_index(drop=True)
+
+    if cv_folds_dir is not None:
+        cv_folds = load_cv_folds(os.path.join(cv_folds_dir, 'cv_folds.p'))
+        df_mela['fold'] = get_fold_col(df_mela, cv_folds)
 
     return df_mela
 
@@ -80,6 +86,12 @@ def resize_img(img, size, interpolation=cv2.INTER_AREA, return_meta=True):
         return img, meta
     else:
         return img
+
+
+def load_cv_folds(filepath):
+    with open(filepath, 'rb') as f:
+        cv_folds = pickle.load(f)
+    return cv_folds
 
 
 def get_fold_col(df, cv_folds, index_col='patient_id'):
