@@ -5,6 +5,7 @@ import pandas as pd
 import cv2
 from zipfile import ZipFile
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
 from utils import data_utils
 
@@ -76,6 +77,83 @@ def preprocess_images(root,
                     json.dump(str(meta), f)
 
     print(f'Saved output to {base_output_dir}')
+
+
+def generate_cv_folds(df,
+                      test_size=0.1,
+                      num_folds=10,
+                      train_cols=None,
+                      stratify_test=None,
+                      stratify_val=None,
+                      index_col='patient_id',
+                      agg_fnc='max',
+                      random_state=42069):
+    """Generates a list of `num_folds` with `index_col` values stratified by
+    the specified columns
+    """
+    if train_cols is not None:
+        if not isinstance(train_cols, (list, tuple)):
+            train_cols = [train_cols]
+        train_ids_force = set()
+        for col in train_cols:
+            train_ids_force.update(df.loc[df[col] == 1, index_col].tolist())
+        train_ids_force = list(train_ids_force)
+    else:
+        train_ids_force = []
+
+    df_fold = df.loc[~df[index_col].isin(train_ids_force)].set_index(index_col)
+
+    if test_size > 0:
+        if stratify_test is not None:
+            if not isinstance(stratify_test, (tuple, list)):
+                stratify_test = [stratify_test]
+
+            df_fold = df_fold.groupby(index_col)[stratify_test].agg(agg_fnc)
+            targets = df_fold.apply(
+                lambda x: '_'.join([str(x[col]) for col in stratify_test]),
+                axis=1
+            ).values
+        else:
+            targets = None
+
+        train_idx, test_idx = train_test_split(df_fold.index,
+                                               stratify=targets,
+                                               test_size=test_size,
+                                               random_state=random_state)
+    else:
+        train_idx = df_fold.index
+        test_idx = []
+
+    # add back train ID's to use for CV
+    train_idx = list(train_idx) + train_ids_force
+
+    if stratify_val is not None:
+        if not isinstance(stratify_val, (tuple, list)):
+            stratify_val = [stratify_val]
+
+        df_train = df.loc[df[index_col].isin(train_idx)]
+        df_train = df_train.groupby(index_col)[stratify_val].agg(agg_fnc)
+        # update target values to stratify on the updated train set
+        targets = df_train.apply(
+            lambda x: '_'.join([str(x[col]) for col in stratify_val]),
+            axis=1
+        ).values
+        kf = StratifiedKFold(num_folds,
+                             random_state=random_state,
+                             shuffle=True)
+    else:
+        df_train = df.loc[df[index_col].isin(train_idx)].set_index(index_col)
+        targets = None
+        kf = KFold(num_folds,
+                   random_state=random_state,
+                   shuffle=True)
+
+    cv_folds = []
+    for i, (tr_idx, val_idx) in enumerate(kf.split(df_train.index, y=targets)):
+        cv_folds.append(df_train.index[val_idx].tolist())
+    # add test id's as the last fold
+    cv_folds.append(list(test_idx))
+    return cv_folds
 
 
 def generate_img_stats(df, meta_dir, target_col='target', name=None):
