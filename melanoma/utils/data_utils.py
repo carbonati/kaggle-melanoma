@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 import pandas as pd
 import cv2
@@ -9,7 +10,8 @@ from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
 def load_data(filepath,
               duplicate_path=None,
-              cv_folds_dir=None):
+              cv_folds_dir=None,
+              keep_prob=1):
     df_mela = pd.read_csv(filepath)
 
     # need to add more logic here for the test set
@@ -18,15 +20,20 @@ def load_data(filepath,
         image_ids_duped = df_dupes['ISIC_id_paired'].tolist()
         df_mela = df_mela.loc[~df_mela['image_name'].isin(image_ids_duped)].reset_index(drop=True)
 
+    # subset for testing
+    if keep_prob < 1 and keep_prob > 0:
+        df_mela = df_mela.sample(frac=keep_prob, replace=False).reset_index(drop=True)
+
     if cv_folds_dir is not None:
         cv_folds = load_cv_folds(os.path.join(cv_folds_dir, 'cv_folds.p'))
         df_mela['fold'] = get_fold_col(df_mela, cv_folds)
 
+    df_mela = fill_na(df_mela, 'anatom_site_general_challenge', how='missing')
     return df_mela
 
 
-def load_image(root, image_id, bgr2rgb=True):
-    img = cv2.imread(os.path.join(root, f'{image_id}.jpg'))
+def load_image(root, image_id, img_format='jpg', bgr2rgb=False):
+    img = cv2.imread(os.path.join(root, f'{image_id}.{img_format}'))
     if bgr2rgb:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
@@ -195,3 +202,11 @@ def stratify_batches(indices,
         strat_indices.extend(last_idx)
 
     return strat_indices
+
+
+def load_img_stats(root, fold_id, filename='img_stats.json'):
+    filepath = os.path.join(root, f'fold_{fold_id}', filename)
+    print(f'Loading img stats for fold {fold_id} from {filepath}')
+    with open(filepath, 'rb') as f:
+        img_stats = eval(json.load(f))
+    return img_stats

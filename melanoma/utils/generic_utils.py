@@ -69,3 +69,45 @@ def load_config_from_yaml(filepath):
     pprint.pprint(config)
     return config
 
+
+def prepare_config(config, args):
+    for arg in vars(args):
+        v = getattr(args, arg)
+        if v is not None:
+            print(f'Updating parameter `{arg}` to {v}')
+            config[arg] = v
+    return config
+
+
+def get_model_fname(config):
+    """
+    scheme
+    ------
+    arch
+    img_size
+    batch_size
+    pool_method
+    optimizer
+    scheduler
+    description
+    datetime
+    """
+    dt_str = datetime.datetime.now().strftime('%Y%m%d_%H%M')
+    img_size = config['input']['images'].strip('/').split('/')[-1].split('x')[0]
+    model_fname = config['model']['backbone']
+    model_fname += f"_{config['criterion']['method']}"
+    model_fname += f'_{img_size}'
+    model_fname += f"_{config['batch_size']}"
+    if config['model'].get('pool_params'):
+        model_fname += f"_{config['model']['pool_params']['method']}"
+    model_fname += f"_{config['optimizer']['method']}"
+    if config.get('scheduler'):
+        model_fname += f"_{config['scheduler']['method']}"
+    if config.get('subset'):
+        for k, v in config['subset'].items():
+            model_fname += f'_{v}'
+    if config.get('tags'):
+        model_fname += f"_{'_'.join(tags)}"
+    model_fname += f"_{dt_str}"
+    return model_fname
+

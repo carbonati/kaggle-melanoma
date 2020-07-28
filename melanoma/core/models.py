@@ -7,6 +7,7 @@ from core.layers import AdaptiveConcatPool2d
 from utils import model_utils
 import config as melanoma_config
 
+
 class Model(nn.Module):
     """melanoma model."""
     def __init__(self,

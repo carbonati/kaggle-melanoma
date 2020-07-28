@@ -62,20 +62,10 @@ def load_model(ckpt_dir,
     return model
 
 
-def get_model(method, params=None):
-    params = params or {}
-    if method == 'concat':
-        model = melanoma_models.ConcatModel(**params)
-    elif method == 'agg':
-        model = melanoma_models.AggModel(**params)
-    elif method == 'chowder':
-        model = melanoma_models.ChowderModel(**params)
-    elif method == 'blend':
-        model = melanoma_models.BlendModel(**params)
-    else:
-        raise ValueError(f'Unrecognized `method` {method}.')
-
+def get_model(**kwargs):
+    model = melanoma_models.Model(**kwargs)
     return model
+
 
 def get_backbone(backbone, pretrained=True):
     if backbone in ['resnext50_32x4d_ssl', 'resnet18_ssl', 'resnet50_ssl', 'resnext101_32x4d_ssl']:

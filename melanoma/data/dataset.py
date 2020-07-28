@@ -18,7 +18,7 @@ class MelanomaDataset(Dataset):
                  target_col='target',
                  img_format='jpg',
                  augmentor=None,
-                 meta_cols=None,
+                 norm_cols=None,
                  fp_16=False,
                  seed=None):
         self.root = root
@@ -26,7 +26,7 @@ class MelanomaDataset(Dataset):
         self.augmentor = augmentor
         self.target_col = target_col
         self.img_format = img_format
-        self.meta_cols = meta_cols
+        self.norm_cols = norm_cols
         self._seed = seed
         self._fp_16 = fp_16
         self._dtype = 'float16' if self._fp_16 else 'float32'
@@ -53,10 +53,10 @@ class MelanomaDataset(Dataset):
     def __getitem__(self, index):
         img = data_utils.load_image(self.root, self.image_ids[index], self.img_format)
         aug_params = deepcopy(self._aug_params)
-        if self.meta_cols is not None:
+        if self.norm_cols is not None:
             df_index = self.df.iloc[index]
 
-            for c in meta_cols:
+            for c in self.norm_cols:
                 aug_params['stratify_col'].append(c)
                 aug_params['stratify_value'].append(df_index[c])
             aug_params = {k: '_'.join(v) for k, v in aug_params.items()}
@@ -70,7 +70,7 @@ class MelanomaDataset(Dataset):
             return img
 
     def _prepare_args(self):
-        if self.meta_cols is not None:
+        if self.norm_cols is not None:
             self._aug_params = {
                 'stratify_col': [],
                 'stratify_value': []
