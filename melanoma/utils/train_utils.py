@@ -48,14 +48,10 @@ def get_scheduler(config, optim, steps_per_epoch=None):
     return sched
 
 
-def get_criterion(config):
-    if config.get('criterion'):
-        method = config['criterion']['method']
-        params = config['criterion'].get('params', {})
-        if method == 'smth':
-            return melanoma_config.CRITERION_MAP[method](config['num_classes'], **params)
-        else:
-            return melanoma_config.CRITERION_MAP[method](**params)
+def get_criterion(method, params=None):
+    params = params or {}
+    if method in melanoma_config.CRITERION_MAP.keys():
+        return melanoma_config.CRITERION_MAP[method](**params)
     else:
         return nn.CrossEntropyLoss()
 

@@ -14,6 +14,7 @@ except:
 from sklearn.metrics import roc_auc_score, log_loss
 from utils.generic_utils import Logger
 from utils.model_utils import load_model
+from evaluation.metrics import compute_auc
 
 
 class Trainer:
@@ -159,8 +160,8 @@ class Trainer:
                 y_val = torch.Tensor(val_dl[0].dataset.get_labels()).long()
             else:
                 y_val = torch.Tensor(val_dl.dataset.get_labels()).long()
-            if self._task == 'reg':
-                y_val = y_val[...,None].float()
+            if y_val.ndim == 1:
+                y_val = y_val[...,None]
 
         for step in range(steps):
             self._global_step += 1
@@ -179,7 +180,7 @@ class Trainer:
                         self.postprocessor.fit(y_pred, y_val.data.cpu().numpy().astype(int))
 
                     y_pred = self.postprocess(y_pred)
-                    val_score = roc_auc_score(y_val, y_pred)
+                    val_score = compute_auc(y_val, y_pred)
 
                     self._history['val_loss'].append(val_loss)
                     self._history['val_auc_score'].append(val_score)
@@ -261,14 +262,6 @@ class Trainer:
         y_pred = self.postprocess(y_pred.data.cpu().detach())
         return y_pred, loss.item()
 
-    def postprocess(self, y_pred, from_logit=True):
-        if self._task == 'clf':
-            return F.softmax(y_pred, dim=1).argmax(1).numpy()
-        else:
-            if self.postprocessor is not None:
-                y_pred = self.postprocessor.predict(y_pred)
-            return y_pred
-
     def train(self, train_dl):
         start_time = time.time()
         self._set_train_mode()
@@ -279,22 +272,28 @@ class Trainer:
 
         train_score_sum = 0
         train_loss_sum = 0
+        n_dense = 0
+        train_dl.dataset.df['target'].dtype
         for i, (x, y) in enumerate(train_dl):
-            if self._task == 'reg':
-                y = y[...,None].float()
+            if y.ndim == 1 and self.criterion.__class__.__name__ != 'LabelSmoothingLoss':
+                y = y[..., None]
+            y = y.long()
+
             if self._is_cuda:
                 x = x.cuda(self.device)
                 y = y.cuda(self.device)
 
             y_pred, loss = self.train_on_batch(x, y)
-            score = roc_auc_score(y.data.cpu(), y_pred)
-            train_score_sum += score
+            score = compute_auc(y.data.cpu(), y_pred)
+            if score is not None:
+                train_score_sum += score
+                n_dense += 1
             train_loss_sum += loss
 
             template_str = f'step {self._global_step} [{i+1:0{pad_batch+1}d}/{num_batches}'
             template_str += f' ({int(time.time()-start_time)}s)'
             template_str += f' - loss : {train_loss_sum/(i+1):.4f}'
-            template_str += f' - auc_score : {train_score_sum/(i+1):.4f}\r'
+            template_str += f' - auc_score : {train_score_sum/n_dense if n_dense > 0 else 0:.4f}\r'
             sys.stdout.write(template_str)
             sys.stdout.flush()
 
@@ -327,6 +326,15 @@ class Trainer:
     def predict_on_batch(self, x):
         return self.model(x).data.cpu()
 
+    def postprocess(self, y_pred, from_logit=True):
+        if self._task == 'clf':
+            return torch.sigmoid(y_pred).numpy()
+            # return F.softmax(y_pred, dim=1).argmax(1).numpy()
+        else:
+            if self.postprocessor is not None:
+                y_pred = self.postprocessor.predict(y_pred)
+            return y_pred
+
     def load_model(self, step=None, filename=None, **kwargs):
         self._load_model(step=step, filename=filename, **kwargs)
 
@@ -355,6 +363,7 @@ class BlendTrainer(Trainer):
 
         train_score_sum = 0
         train_loss_sum = 0
+        n_dense = 0
         i = 0
         for batches in zip(*train_dl):
             x = []
@@ -373,8 +382,10 @@ class BlendTrainer(Trainer):
                         y = y[...,None].float()
 
             y_pred, loss = self.train_on_batch(x, y)
-            score = roc_auc_score(y.data.cpu(), y_pred)
-            train_score_sum += score
+            score = compute_auc(y.data.cpu(), y_pred)
+            if score is not None:
+                train_score_sum += score
+                n_dense += 1
             train_loss_sum += loss
 
             template_str = f'step {self._global_step} [{i+1:0{pad_batch+1}d}/{num_batches}'

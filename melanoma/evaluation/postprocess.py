@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import time
 from scipy.optimize import minimize
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import roc_auc_score, accuracy_score
 from torch.utils.data import DataLoader, RandomSampler
 
 from utils import data_utils, model_utils, train_utils
@@ -22,7 +22,7 @@ def generate_df_pred(trainer,
     """Returns a table of predictions for each sample of in a dataloader."""
     start_time = time.time()
     if pred_cols is None:
-        pred_cols = ['image_id', 'isup_grade', 'prediction']
+        pred_cols = ['image_id', 'target', 'prediction']
 
     # load the best model and save validation predictions to disk
     if mode == 'blend':
@@ -67,11 +67,6 @@ def generate_df_pred(trainer,
         *y_pred_raw.T
     ]
     df_pred = pd.DataFrame(zip(*pred_data), columns=pred_cols)
-    if df_mela is not None:
-        df_pred = pd.merge(df_pred,
-                           df_mela[['image_id', 'data_provider']],
-                           how='left',
-                           on='image_id')
 
     print(f'Total time to generate predictions : {int(time.time()-start_time)}s')
     return df_pred
@@ -79,7 +74,7 @@ def generate_df_pred(trainer,
 
 def log_model_summary(df_pred,
                       logger=None,
-                      target_col='isup_grade',
+                      target_col='target',
                       group='val'):
     logger = logger or sys.stdout
     template_str = f'{group} model scores'
@@ -87,19 +82,10 @@ def log_model_summary(df_pred,
     logger.write(template_str)
     logger.write('-'*len(template_str))
 
-    qwk = roc_auc_score(df_pred[target_col], df_pred['prediction'])
+    # add logic to dynamically score performance across many metrics
+    auc = roc_auc_score(df_pred[target_col], df_pred['prediction'])
     acc = accuracy_score(df_pred[target_col], df_pred['prediction'])
-    logger.write(f'\nQWK : {qwk:.6f}\nACC : {acc:.6f}')
-
-    # log scores by institution
-    logger.write(f"\ndata_provider\n{'-'*13}")
-    provider_scores = compute_provider_scores(df_pred)
-    for k, v in provider_scores.items():
-        logger.write(f"{k} \t: {v:.4f}")
-
-    # log confusion matrix
-    c_mtx = confusion_matrix(df_pred[target_col], df_pred['prediction'])
-    logger.write('\n' + repr(c_mtx) + '\n')
+    logger.write(f'\nauc : {auc:.6f}\nACC : {acc:.6f}')
 
 
 def get_branch(ckpt_dir,

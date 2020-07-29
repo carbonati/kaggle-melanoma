@@ -1,6 +1,25 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.modules.loss import MSELoss, _Loss
+
+
+class BCELabelSmoothingLoss(nn.Module):
+    def __init__(self, smoothing=0.0, pos_weight=None):
+        super(BCELabelSmoothingLoss, self).__init__()
+        self.smoothing = smoothing
+        self.pos_weight = pos_weight
+        if self.pos_weight is not None and not isinstance(self.pos_weight, torch.Tensor):
+            self.pos_weight = torch.tensor(self.pos_weight)
+
+    def forward(self, y_pred, y_true):
+        y_smooth = y_true * (1 - self.smoothing) + .5 * self.smoothing
+        loss = F.binary_cross_entropy_with_logits(
+            y_pred,
+            y_smooth.type_as(y_pred),
+            pos_weight=self.pos_weight
+        )
+        return loss
 
 
 class LabelSmoothingLoss(nn.Module):

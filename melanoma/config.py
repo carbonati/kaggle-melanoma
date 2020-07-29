@@ -49,6 +49,7 @@ ARCH_TO_PRETRAINED = {
 }
 
 CRITERION_MAP = {
+    'bce_smth': losses.BCELabelSmoothingLoss,
     'lbl_smth': losses.LabelSmoothingLoss,
     'mse': nn.MSELoss,
     'bce': nn.BCEWithLogitsLoss,
