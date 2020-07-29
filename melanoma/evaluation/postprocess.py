@@ -13,6 +13,7 @@ from data.dataset import MelanomaDataset
 
 def generate_df_pred(trainer,
                      dl,
+                     y_true=None,
                      df_mela=None,
                      postprocessor=None,
                      num_classes=6,
@@ -22,14 +23,12 @@ def generate_df_pred(trainer,
     """Returns a table of predictions for each sample of in a dataloader."""
     start_time = time.time()
     if pred_cols is None:
-        pred_cols = ['image_id', 'target', 'prediction']
+        pred_cols = ['image_id', 'prediction']
 
     # load the best model and save validation predictions to disk
     if mode == 'blend':
-        y_true = dl[0].dataset.get_labels()
         image_ids = dl[0].dataset.get_image_ids()
     else:
-        y_true = dl.dataset.get_labels()
         image_ids = dl.dataset.get_image_ids()
 
     # generate (bagged) predictions
@@ -62,10 +61,13 @@ def generate_df_pred(trainer,
     # generate prediction table
     pred_data = [
         image_ids,
-        y_true,
         y_pred,
         *y_pred_raw.T
     ]
+    if y_true is not None:
+        pred_data.append(y_true)
+        pred_cols.append('target')
+
     df_pred = pd.DataFrame(zip(*pred_data), columns=pred_cols)
 
     print(f'Total time to generate predictions : {int(time.time()-start_time)}s')

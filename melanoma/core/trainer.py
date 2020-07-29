@@ -157,11 +157,15 @@ class Trainer:
         self._empty_cache()
         if val_dl is not None:
             if isinstance(val_dl, list):
-                y_val = torch.Tensor(val_dl[0].dataset.get_labels()).long()
+                y_val = torch.Tensor(val_dl[0].dataset.get_labels())
             else:
-                y_val = torch.Tensor(val_dl.dataset.get_labels()).long()
+                y_val = torch.Tensor(val_dl.dataset.get_labels())
             if y_val.ndim == 1:
-                y_val = y_val[...,None]
+                y_val = y_val[..., None]
+            if self.criterion.__class__.__name__ != 'BCELabelSmoothingLoss':
+                y_val = y_val.long()
+            else:
+                y_val = y_val.float()
 
         for step in range(steps):
             self._global_step += 1
@@ -275,9 +279,12 @@ class Trainer:
         n_dense = 0
         train_dl.dataset.df['target'].dtype
         for i, (x, y) in enumerate(train_dl):
-            if y.ndim == 1 and self.criterion.__class__.__name__ != 'LabelSmoothingLoss':
+            if y.ndim == 1:
                 y = y[..., None]
-            y = y.long()
+            if self.criterion.__class__.__name__ == 'BCELabelSmoothingLoss':
+                y = y.long()
+            else:
+                y = y.float()
 
             if self._is_cuda:
                 x = x.cuda(self.device)

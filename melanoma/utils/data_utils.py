@@ -11,7 +11,8 @@ from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 def load_data(filepath,
               duplicate_path=None,
               cv_folds_dir=None,
-              keep_prob=1):
+              keep_prob=1,
+              random_state=42069):
     df_mela = pd.read_csv(filepath)
 
     # need to add more logic here for the test set
@@ -22,7 +23,9 @@ def load_data(filepath,
 
     # subset for testing
     if keep_prob < 1 and keep_prob > 0:
-        df_mela = df_mela.sample(frac=keep_prob, replace=False).reset_index(drop=True)
+        df_mela = df_mela.sample(frac=keep_prob,
+                                 replace=False,
+                                 random_state=random_state).reset_index(drop=True)
 
     if cv_folds_dir is not None:
         cv_folds = load_cv_folds(os.path.join(cv_folds_dir, 'cv_folds.p'))

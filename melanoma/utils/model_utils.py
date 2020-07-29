@@ -53,8 +53,8 @@ def load_model(ckpt_dir,
                **kwargs):
     config = load_config(ckpt_dir)
     model_params = config['model']
-    model_params['params']['pretrained'] = False
-    model_params['params'].update(kwargs)
+    model_params['pretrained'] = False
+    model_params.update(kwargs)
     state_dict = load_best_state_dict(ckpt_dir, step, filename, device=device)
     model = get_model(**model_params).to(device)
     model.load_state_dict(state_dict)
@@ -90,7 +90,10 @@ def get_backbone(backbone, pretrained=True):
         if pretrained:
             encoder.load_state_dict(torch.load(melanoma_config.ARCH_TO_PRETRAINED[backbone]))
         in_features = encoder._fc.in_features
-        encoder._fc = nn.Identity()
+		#encoder._avg_pooling = nn.Identity()
+		#encoder._dropout = nn.Identity()
+		#encoder._fc = nn.Identity()
+		#encoder._swish = nn.Identity()
     elif backbone == 'inception_resnet_v2':
         pretrained = 'imagenet' if pretrained else None
         encoder = pretrainedmodels.inceptionresnetv2(pretrained=pretrained)
