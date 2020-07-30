@@ -67,7 +67,9 @@ def train(config):
     fold_ids = fold_ids if isinstance(fold_ids, list) else [fold_ids]
 
     if config['input'].get('test'):
-        df_test = data_utils.load_data(config['input']['test'])
+        df_test = data_utils.load_data(config['input']['test'],
+                                       keep_prob=config.get('keep_prob', 1.),
+                                       random_state=config['random_state'])
     else:
         df_test = None
 
@@ -200,7 +202,8 @@ def train(config):
                                           steps_per_epoch=len(train_dl))
         if config.get('class_weight') == 'balanced':
             pos_weight = (df_train[config['target_col']] == 0).sum() / (df_train[config['target_col']] == 1).sum()
-            config['criterion']['params']['pos_weight'] = pos_weight
+            config['criterion']['params'] = dict(config['criterion'].get('params', {}),
+                                                 **{'pos_weight': pos_weight})
         criterion = train_utils.get_criterion(**config['criterion'])
 
         if config.get('fp_16'):

@@ -73,6 +73,8 @@ def load_config_from_yaml(filepath):
 def prepare_config(config, args):
     for arg in vars(args):
         v = getattr(args, arg)
+        if arg == 'batch_size':
+            v = v if v != 0 else None
         if v is not None:
             print(f'Updating parameter `{arg}` to {v}')
             config[arg] = v

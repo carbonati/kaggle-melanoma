@@ -1,0 +1,66 @@
+input:
+  train: /root/workspace/kaggle-melanoma/data/train.csv
+  test: /root/workspace/kaggle-melanoma/data/test.csv
+  images: /root/workspace/kaggle-melanoma/data/ISIC_2020/224x224_jpg_100_4/
+  duplicates: /root/workspace/kaggle-melanoma/data/sus/2020_Challenge_duplicates.csv
+  cv_folds: /root/workspace/kaggle-melanoma/data/cv_folds/cv_folds_20200728_0112
+  models: /root/workspace/kaggle-melanoma/models
+
+data:
+  norm_cols:
+    - anatom_site_general_challenge
+  seed: 42069
+
+augmentations:
+  tta_val: false
+  tta_test: true
+  transforms:
+    normalize:
+      mean: null
+      std: null
+    transpose:
+      p: 0.5
+    vertical:
+      p: 0.5
+    horizontal:
+      p: 0.5
+
+sampler:
+  method: random
+
+optimizer:
+  method: adam
+  params:
+    lr: 0.00001
+
+scheduler:
+  method: one_cycle
+  params:
+    max_lr: 0.0005
+
+model:
+  backbone: efficientnet-b0
+  pool_params:
+    method: concat
+  num_classes: 1
+
+trainer:
+  task: clf
+  max_norm: 3
+
+criterion:
+  method: bce
+  # params:
+  #  smoothing: 0.03
+
+target_col: target
+# class_weight: balanced
+num_classes: 1
+eval_batch_size: 128
+test_batch_size: 64
+eval_test: true
+num_bags: 5
+
+num_workers: 8
+distributed: false
+random_state: 42069

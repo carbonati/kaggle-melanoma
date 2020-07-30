@@ -67,7 +67,7 @@ def get_model(**kwargs):
     return model
 
 
-def get_backbone(backbone, pretrained=True):
+def get_backbone(backbone, pretrained=True, **kwargs):
     if backbone in ['resnext50_32x4d_ssl', 'resnet18_ssl', 'resnet50_ssl', 'resnext101_32x4d_ssl']:
         if pretrained:
             model = torch.hub.load(melanoma_config.ARCH_TO_PRETRAINED[backbone], backbone)
