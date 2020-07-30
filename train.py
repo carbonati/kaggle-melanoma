@@ -37,8 +37,8 @@ def train(config):
         if not os.path.exists(log_dir):
             os.makedirs(log_dir, exist_ok=True)
     # clean up model directory
-    # for exp_dir in glob.glob(os.path.join(config['input']['models'], '*exp*')):
-    #     utils.cleanup_ckpts(log_dir)
+    for exp_dir in glob.glob(os.path.join(config['input']['models'], '*exp*')):
+        utils.cleanup_ckpts(log_dir)
     # model output configurations
     img_version = config['input']['images'].strip('/').split('/')[-1]
     model_fname = utils.get_model_fname(config)
@@ -59,7 +59,8 @@ def train(config):
     df_mela = data_utils.load_data(config['input']['train'],
                                    duplicate_path=config['input']['duplicates'],
                                    cv_folds_dir=config['input']['cv_folds'],
-                                   keep_prob=config.get('keep_prob', 1.))
+                                   keep_prob=config.get('keep_prob', 1.),
+                                   random_state=config['random_state'])
 
 
     fold_ids = config.get('fold_ids', list(set(df_mela['fold'].tolist())))
@@ -123,7 +124,6 @@ def train(config):
                                                   fold_id)
             config['augmentations']['transforms']['normalize'] = img_stats
 
-        print(img_stats)
         # tile & image augmentors
         train_aug, val_aug, test_aug = train_utils.get_augmentors(
             config['augmentations'].get('transforms'),
@@ -141,11 +141,13 @@ def train(config):
                                    #fp_16=config.get('fp_16'),
                                    **config['data'])
         val_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
-                              df_val,
-                              augmentor=val_aug,
-                              fp_16=False)
+                                 df_val,
+                                 augmentor=val_aug,
+                                 fp_16=False,
+                                 **config['data'])
                               #fp_16=config.get('fp_16'),
 
+        config['val_batch_size'] = config.get('val_batch_size', config['batch_size'])
         train_sampler = train_utils.get_sampler(train_ds,
                                                 distributed=config['distributed'],
                                                 batch_size=config['batch_size'] * config['num_gpus'],
@@ -153,8 +155,8 @@ def train(config):
                                                 method=config['sampler']['method'],
                                                 params=config['sampler'].get('params', {}))
         val_sampler = train_utils.get_sampler(val_ds,
-                                              method='sequential',
-                                              distributed=config['distributed'])
+                                              method='sequential',)
+                                              #distributed=config['distributed'])
 
         train_dl = DataLoader(train_ds,
                               batch_size=config['batch_size'],
@@ -167,9 +169,10 @@ def train(config):
                             num_workers=config['num_workers'])
 
         if config.get('test_batch_size'):
-            eval_ds = MelanomaDataset(os.path.join(config['input']['images'], 'tiles'),
-                                   df_val,
-                                   augmentor=test_aug)
+            eval_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
+                                      df_val,
+                                      augmentor=test_aug,
+                                      **config['data'])
             eval_dl = DataLoader(eval_ds,
                                  batch_size=config['test_batch_size'],
                                  sampler=SequentialSampler(eval_ds),
@@ -180,9 +183,10 @@ def train(config):
         if df_test is not None:
             # use the same augmentor as the validation set
             test_ds = MelanomaDataset(os.path.join(config['input']['images'], 'test'),
-                                   df_test,
-                                   augmentor=test_aug,
-                                   **config['data'])
+                                      df_test,
+                                      target_col=None,
+                                      augmentor=test_aug,
+                                      **config['data'])
             test_sampler = train_utils.get_sampler(test_ds, method='sequential')
             test_dl = DataLoader(test_ds,
                                  batch_size=config.get('test_batch_size', config['val_batch_size']),
@@ -194,7 +198,10 @@ def train(config):
         optim = train_utils.get_optimizer(model=model, **config['optimizer'])
         sched = train_utils.get_scheduler(config, optim,
                                           steps_per_epoch=len(train_dl))
-        criterion = train_utils.get_criterion(config)
+        if config.get('class_weight') == 'balanced':
+            pos_weight = (df_train[config['target_col']] == 0).sum() / (df_train[config['target_col']] == 1).sum()
+            config['criterion']['params']['pos_weight'] = pos_weight
+        criterion = train_utils.get_criterion(**config['criterion'])
 
         if config.get('fp_16'):
             model, optim = amp.initialize(model,
@@ -215,28 +222,33 @@ def train(config):
                           **config['trainer'])
         trainer.fit(train_dl, config['steps'], val_dl)
 
+        # save history table to disk
+        df_hist = pd.concat((pd.DataFrame(range(1, len(trainer._history['loss'])+1), columns=['epoch']),
+                             pd.DataFrame(trainer._history)),
+                             axis=1)
+        df_hist.to_csv(os.path.join(ckpt_dir, 'history.csv'), index=False)
+
         # generate predictions table from the best step model
+        trainer.model = model_utils.load_model(trainer.ckpt_dir, trainer.best_step)
         if config['local_rank'] == 0:
+            num_bags = config.get('num_bags', 1)
+            print(f'\nGenerating {num_bags} validation prediction(s).')
             df_pred_val = generate_df_pred(trainer,
                                            eval_dl,
+                                           eval_dl.dataset.get_labels(),
                                            df_val,
-                                           num_bags=config.get('num_bags'))
+                                           num_bags=num_bags)
             df_pred_val.to_csv(os.path.join(ckpt_dir, 'val_predictions.csv'), index=False)
-            if postprocessor is not None:
-                print('Updating postprocessor val predictions')
-                postprocessor.fit(df_pred_val['prediction_raw'], df_pred_val[config['target_col']])
             log_model_summary(df_pred_val, logger=trainer.logger, group='val')
 
             if test_dl is not None:
+                print(f'\nGenerating {num_bags} test prediction(s).')
                 df_pred_test = generate_df_pred(trainer,
                                                 test_dl,
                                                 df_test,
-                                                num_bags=config.get('num_bags'))
-            df_pred_test.to_csv(os.path.join(ckpt_dir, 'test_predictions.csv'), index=False)
-            log_model_summary(df_pred_test, logger=trainer.logger, group='test')
+                                                num_bags=num_bags)
+                df_pred_test.to_csv(os.path.join(ckpt_dir, 'test_predictions.csv'), index=False)
 
-            if postprocessor is not None:
-                np.save(os.path.join(ckpt_dir, 'coef.npy'), postprocessor.get_coef())
             print(f'Saved output to {ckpt_dir}')
 
 

@@ -162,7 +162,7 @@ class Trainer:
                 y_val = torch.Tensor(val_dl.dataset.get_labels())
             if y_val.ndim == 1:
                 y_val = y_val[..., None]
-            if self.criterion.__class__.__name__ != 'BCELabelSmoothingLoss':
+            if self.criterion.__class__.__name__ == 'BCELabelSmoothingLoss':
                 y_val = y_val.long()
             else:
                 y_val = y_val.float()

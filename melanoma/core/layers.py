@@ -28,7 +28,8 @@ class GeM(nn.Module):
         self.eps = eps
 
     def forward(self, x):
-        return gem(x, p=self.p, eps=self.eps)
+        batch_size = len(x)
+        return gem(x, p=self.p, eps=self.eps).view(batch_size, -1)
 
     def __repr__(self):
         return self.__class__.__name__ + '(' + 'p=' + '{:.4f}'.format(self.p.data.tolist()[0]) + ', ' + 'eps=' + str(self.eps) + ')'

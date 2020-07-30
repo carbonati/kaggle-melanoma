@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 import pretrainedmodels
 from torchvision import models as _models
-from efficientnet_pytorch import model as enet
+from efficientnet_pytorch import EfficientNet as enet
 from core import models as melanoma_models
 import config as melanoma_config
 
@@ -86,14 +86,11 @@ def get_backbone(backbone, pretrained=True):
         encoder = nn.Sequential(*list(model.children())[:-2])
         in_features = model.last_linear.in_features
     elif backbone.startswith('efficientnet'):
-        encoder = enet.EfficientNet.from_name(backbone)
         if pretrained:
-            encoder.load_state_dict(torch.load(melanoma_config.ARCH_TO_PRETRAINED[backbone]))
+            encoder = enet.from_pretrained(backbone, **kwargs)
+        else:
+            encoder = enet.from_name(backbone, **kwargs)
         in_features = encoder._fc.in_features
-		#encoder._avg_pooling = nn.Identity()
-		#encoder._dropout = nn.Identity()
-		#encoder._fc = nn.Identity()
-		#encoder._swish = nn.Identity()
     elif backbone == 'inception_resnet_v2':
         pretrained = 'imagenet' if pretrained else None
         encoder = pretrainedmodels.inceptionresnetv2(pretrained=pretrained)

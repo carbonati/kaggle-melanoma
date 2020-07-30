@@ -32,9 +32,12 @@ class Model(nn.Module):
         self.encoder, in_features = model_utils.get_backbone(self._backbone,
                                                              self._pretrained)
         self.pool_layer = melanoma_config.POOLING_MAP[self._pool_method](**self._pool_params['params'])
+        in_features = in_features * 2 if self._pool_method == 'concat' else in_features
 
-        if not backbone.startswith('efficientnet'):
-            in_features = in_features * 2 if self._pool_method == 'concat' else in_features
+        if backbone.startswith('efficientnet'):
+            self._extract_features = self.encoder.extract_features
+        else:
+            self._extract_features = self.encoder
 
         if self._output_net_params is not None:
             hidden_dim = self._output_net_params.get('hidden_dim', 512)
@@ -55,8 +58,11 @@ class Model(nn.Module):
                                         self._num_classes,
                                         bias=False)
 
+    def extract_features(self, x):
+        return self._extract_features(x)
+
     def forward(self, x):
-        x = self.encoder(x)
+        x = self.extract_features(x)
         x = self.pool_layer(x)
         x = self.output_net(x)
         return x
