@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 import albumentations
 from torch.utils import data
-from core import losses
-from core import layers
-from data.samplers import BatchStratifiedSampler
+from .core import losses
+from .core import layers
+from .data.samplers import BatchStratifiedSampler
 
 # update root path for pretrained models
 ROOT_PATH = os.path.join(os.getenv('HOME'), 'workspace/kaggle-melanoma')
