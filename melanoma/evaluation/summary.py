@@ -4,7 +4,7 @@ import glob
 import numpy as np
 import pandas as pd
 
-from utils import data_utils
+from utils import data_utils, model_utils
 from evaluation.metrics import compute_auc
 
 
@@ -35,7 +35,7 @@ def generate_df_scores(exp_dirs, df_panda=None):
             for model_name in dirs:
                 fold_dirs = glob.glob(os.path.join(root, model_name, 'fold_*'))
                 try:
-                    config = data_utils.load_config(os.path.join(root, model_name))
+                    config = model_utils.load_config(os.path.join(root, model_name))
                 except:
                     continue
                 for fold_dir in fold_dirs:
@@ -70,5 +70,5 @@ def generate_df_scores(exp_dirs, df_panda=None):
                         df_scores = pd.concat((df_scores, df_best), ignore_index=True)
 
     df_scores = df_scores.loc[df_scores['val_auc_score'].sort_values(ascending=False).index]
-	df_scores = df_scores.reset_index(drop=True)
+    df_scores = df_scores.reset_index(drop=True)
     return df_scores
