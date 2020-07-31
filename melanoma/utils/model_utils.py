@@ -24,7 +24,7 @@ def load_config(ckpt_dir):
         return json.load(f)
 
 
-def load_best_state_dict(ckpt_dir, step=None, filename=None, device='cuda'):
+def load_state_dict(ckpt_dir, step=None, filename=None, device='cuda'):
     if step is None and filename is None:
         raise ValueError('`step` and `filename` cannot both be None.')
     if step is not None:
@@ -46,24 +46,41 @@ def load_best_state_dict(ckpt_dir, step=None, filename=None, device='cuda'):
     return state_dict
 
 
+def load_best_state_dict(ckpt_dir, device='cuda'):
+    steps = [int(fn.split('_')[1]) for fn in os.listdir(ckpt_dir) if fn.startswith('ckpt_')]
+    if len(steps) == 0:
+        raise ValueError(f'Found 0 ckpts in {ckpt_dir}')
+    best_step = max(steps)
+    filename = [fn for fn in os.listdir(ckpt_dir) if fn.startswith(f'ckpt_{best_step:04d}')][0]
+    state_dict = load_state_dict(ckpt_dir, filename=filename, device=device)
+    return state_dict
+
+
 def load_model(ckpt_dir,
                step=None,
                filename=None,
                device='cuda',
                **kwargs):
+    """Loads pretrained model from disk."""
     config = load_config(ckpt_dir)
     model_params = config['model']
     model_params['pretrained'] = False
     model_params.update(kwargs)
-    state_dict = load_best_state_dict(ckpt_dir, step, filename, device=device)
+    if step == 'best':
+        state_dict = load_best_state_dict(ckpt_dir, device=device)
+    else:
+        state_dict = load_state_dict(ckpt_dir, step, filename, device=device)
     model = get_model(**model_params).to(device)
     model.load_state_dict(state_dict)
     model.eval()
     return model
 
 
-def get_model(**kwargs):
-    model = melanoma_models.Model(**kwargs)
+def get_model(backbone, **kwargs):
+    if backbone.startswith('efficientnet'):
+        model = melanoma_models.EfficientModel(backbone, **kwargs)
+    else:
+        model = melanoma_models.BaseModel(backbone, **kwargs)
     return model
 
 

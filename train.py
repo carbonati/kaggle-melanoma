@@ -1,16 +1,12 @@
 import os
 import sys
-import glob
 import json
-import pickle
+import argparse
 import warnings
 import numpy as np
 import pandas as pd
-import time
-import argparse
 import torch
 import torch.nn as nn
-from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from torch.utils.data import DataLoader, SequentialSampler
 warnings.simplefilter("ignore", UserWarning)
 
@@ -36,9 +32,7 @@ def train(config):
         log_dir = os.path.join(log_dir, config['experiment_name'])
         if not os.path.exists(log_dir):
             os.makedirs(log_dir, exist_ok=True)
-    # clean up model directory
-    for exp_dir in glob.glob(os.path.join(config['input']['models'], '*exp*')):
-        utils.cleanup_ckpts(log_dir)
+
     # model output configurations
     img_version = config['input']['images'].strip('/').split('/')[-1]
     model_fname = utils.get_model_fname(config)
@@ -126,15 +120,14 @@ def train(config):
                                                   fold_id)
             config['augmentations']['transforms']['normalize'] = img_stats
 
-        # tile & image augmentors
+        # augmentors
         train_aug, val_aug, test_aug = train_utils.get_augmentors(
             config['augmentations'].get('transforms'),
             norm_cols=config['data'].get('norm_cols'),
             tta_val=config['augmentations'].get('tta_val', False),
-            tta_test=config['augmentations'].get('tta_test', False),
+            tta_test=config['augmentations'].get('tta_test', True),
             fp_16=False
         )
-            #fp_16=config.get('fp_16'))
 
         train_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
                                    df_train,
@@ -235,8 +228,8 @@ def train(config):
             print(f'\nGenerating {num_bags} validation prediction(s).')
             df_pred_val = generate_df_pred(trainer,
                                            eval_dl,
-                                           eval_dl.dataset.get_labels(),
-                                           df_val,
+                                           y_true=eval_dl.dataset.get_labels(),
+                                           df_mela=df_val,
                                            num_bags=num_bags)
             df_pred_val.to_csv(os.path.join(ckpt_dir, 'val_predictions.csv'), index=False)
             log_model_summary(df_pred_val, logger=trainer.logger, group='val')
@@ -245,7 +238,7 @@ def train(config):
                 print(f'\nGenerating {num_bags} test prediction(s).')
                 df_pred_test = generate_df_pred(trainer,
                                                 test_dl,
-                                                df_test,
+                                                df_mela=df_test,
                                                 num_bags=num_bags)
                 df_pred_test.to_csv(os.path.join(ckpt_dir, 'test_predictions.csv'), index=False)
 

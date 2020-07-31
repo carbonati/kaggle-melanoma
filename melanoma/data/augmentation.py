@@ -12,7 +12,9 @@ class MelanomaAugmentor:
                  train_mode=True,
                  dtype='float32'):
         self.augmentations = augmentations
-        self.norm_cols = norm_cols if isinstance(norm_cols, list) else [norm_cols]
+        self.norm_cols = norm_cols
+        if self.norm_cols is not None and not isinstance(self.norm_cols, list):
+            self.norm_cols = [self.norm_cols]
         self.train_mode = train_mode
         self.dtype = dtype
         if self.augmentations is not None:

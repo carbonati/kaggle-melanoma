@@ -22,8 +22,8 @@ class Trainer:
 
     def __init__(self,
                  model,
-                 optim,
-                 criterion,
+                 optim=None,
+                 criterion=None,
                  task='clf',
                  scheduler=None,
                  postprocessor=None,
@@ -114,7 +114,8 @@ class Trainer:
         self._new_best = False
 
     def _empty_cache(self):
-        self.optim.zero_grad()
+        if self.optim is not None:
+            self.optim.zero_grad()
         torch.cuda.empty_cache()
 
     def _set_train_mode(self):
