@@ -13,9 +13,9 @@ def main(args):
     keyword = args.keyword
     output_dir = args.output_dir
     exp_dirs = glob.glob(os.path.join(model_dir, f'*{keyword}*'))
-    print(exp_dirs)
     print('Generating summary table.')
     df_scores = generate_df_scores(exp_dirs)
+    df_scores = df_scores.sort_values(args.sort_by, ascending=args.ascending).reset_index(drop=True)
     print(df_scores)
 
     filepath = os.path.join(output_dir, 'scores.csv')
@@ -40,6 +40,16 @@ if __name__ == '__main__':
                         default='output',
                         type=str,
                         help='Path to model directory.')
+    parser.add_argument('--sort_by',
+                        '-s',
+                        default='val_auc_score',
+                        type=str,
+                        help='Colname to sort table by.')
+    parser.add_argument('--ascending',
+                        '-a',
+                        default=False,
+                        action='store_true',
+                        help='Sort table in ascending order by `sort_by`.')
     args = parser.parse_args()
 
     main(args)

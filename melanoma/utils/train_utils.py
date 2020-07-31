@@ -48,8 +48,17 @@ def get_scheduler(config, optim, steps_per_epoch=None):
     return sched
 
 
-def get_criterion(method, params=None):
+def get_criterion(method,
+                  params=None,
+                  df_train=None,
+                  target_col='target'):
     params = params or {}
+    if params.get('class_weight') == 'balanced' and df_train is not None:
+        params.pop('class_weight')
+        pos_weight = (df_train[target_col] == 0).sum() / (df_train[target_col] == 1).sum()
+        print(f'Setting `pos_weight` to {pos_weight}')
+        params = dict(params, **{'pos_weight': torch.tensor(pos_weight)})
+
     if method in melanoma_config.CRITERION_MAP.keys():
         return melanoma_config.CRITERION_MAP[method](**params)
     else:

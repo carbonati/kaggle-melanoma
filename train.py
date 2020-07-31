@@ -200,11 +200,8 @@ def train(config):
         optim = train_utils.get_optimizer(model=model, **config['optimizer'])
         sched = train_utils.get_scheduler(config, optim,
                                           steps_per_epoch=len(train_dl))
-        if config.get('class_weight') == 'balanced':
-            pos_weight = (df_train[config['target_col']] == 0).sum() / (df_train[config['target_col']] == 1).sum()
-            config['criterion']['params'] = dict(config['criterion'].get('params', {}),
-                                                 **{'pos_weight': pos_weight})
-        criterion = train_utils.get_criterion(**config['criterion'])
+        criterion = train_utils.get_criterion(**config['criterion'],
+                                              df_train=df_train)
 
         if config.get('fp_16'):
             model, optim = amp.initialize(model,
