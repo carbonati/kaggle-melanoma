@@ -1,15 +1,21 @@
 input:
-  data_dir: /home/carbonati/workspace/kaggle-melanoma/data/
-  root: /home/carbonati/workspace/kaggle-melanoma/data/jpeg
+  # train_filepath: /home/carbonati/workspace/kaggle-melanoma/data/external_data/isic_2019.csv
+  # train_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/skin_lesion_2019/ISIC_2019_Training_Input/ISIC_2019_Training_Input
+  train_filepath: /home/carbonati/workspace/kaggle-melanoma/data/train.csv
+  test_filepath: /home/carbonati/workspace/kaggle-melanoma/data/test.csv
+  train_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/jpeg/train
+  test_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/jpeg/test
 
 output:
-  output_dir: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020_meta_fix
+  output_dir: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020
 
 data:
-  size: 300
+  size: 224
   interpolation: 4
   quality: 100
   img_format: jpg
 
 default:
   return_meta: true
+  keep_prob: 1
+  bgr2rgb: true # set to true for external data

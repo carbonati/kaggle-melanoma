@@ -8,21 +8,24 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
 from utils import data_utils
+import config as melanoma_config
 
 
-def preprocess_images(root,
-                      data_dir,
+def preprocess_images(train_image_dir,
+                      train_filepath,
                       output_dir,
                       size,
                       interpolation=4,
                       img_format='jpg',
                       quality=100,
                       return_meta=True,
-                      duplicate_path=None):
-
+                      test_image_dir=None,
+                      test_filepath=None,
+                      duplicate_path=None,
+                      bgr2rgb=True,
+                      keep_prob=1):
+    """Resize images and save metadata to disk."""
     compression = cv2.IMWRITE_PNG_COMPRESSION if img_format == 'png' else cv2.IMWRITE_JPEG_QUALITY
-    train_image_dir = os.path.join(root, 'train')
-    test_image_dir = os.path.join(root, 'test')
 
     if size is not None:
         base_output_dir = os.path.join(output_dir, f'{size}x{size}_{img_format}_{quality}_{interpolation}')
@@ -37,18 +40,22 @@ def preprocess_images(root,
     if not os.path.exists(meta_dir):
         os.makedirs(meta_dir)
 
-    df_train = data_utils.load_data(os.path.join(data_dir, 'train.csv'), duplicate_path=duplicate_path)
+    df_train = data_utils.load_data(train_filepath,
+                                    duplicate_path=duplicate_path,
+                                    keep_prob=keep_prob)
     df_train['image_dir'] = train_image_dir
     df_train['partition'] = 'train'
-    df_test = data_utils.load_data(os.path.join(data_dir, 'test.csv'))
-    df_test['image_dir'] = test_image_dir
-    df_test['partition'] = 'test'
-
-    df_mela = pd.concat(
-        (df_train[['image_name', 'image_dir', 'partition']], df_test[['image_name', 'image_dir', 'partition']]),
-        axis=0,
-        ignore_index=True
-    )
+    if test_filepath is not None:
+        df_test = data_utils.load_data(test_filepath, keep_prob=keep_prob)
+        df_test['image_dir'] = test_image_dir
+        df_test['partition'] = 'test'
+        df_mela = pd.concat(
+            (df_train[['image_name', 'image_dir', 'partition']], df_test[['image_name', 'image_dir', 'partition']]),
+            axis=0,
+            ignore_index=True
+        )
+    else:
+        df_mela = df_train[['image_name', 'image_dir', 'partition']].copy()
 
     print(f'Saving train images to {train_output_path}')
     print(f'Saving test images to {test_output_path}')
@@ -57,7 +64,9 @@ def preprocess_images(root,
     with ZipFile(train_output_path, 'w') as train_file, ZipFile(test_output_path, 'w') as test_file:
         for row in tqdm(df_mela.itertuples(), total=len(df_mela), desc='Preprocessing images'):
             image_id = row.image_name
-            img = data_utils.load_image(row.image_dir, image_id)
+            #from IPython import embed
+            #embed()
+            img = data_utils.load_image(row.image_dir, image_id, bgr2rgb=bgr2rgb)
             if size is None:
                 img = data_utils.trim_img(img)
                 meta = data_utils.get_img_stats(img)
@@ -178,3 +187,35 @@ def generate_img_stats(df, meta_dir, target_col='target', name=None):
     }
     return img_stats
 
+
+def prepare_isic_2018(root, output):
+    df_meta = pd.read_csv(os.path.join(root, 'HAM10000_metadata.csv'))
+    df_meta['target'] = (df_meta['dx'] == 'mel').astype(int)
+    df_meta['source'] = 'ISIC_2018'
+    df_meta['localization'] = df_meta['localization'].map(melanoma_config.ANATOM_MAP).fillna(df_meta['localization'])
+    df_meta['localization'] = df_meta['localization'].fillna('unknown')
+    df_meta = df_meta.rename(columns={
+        'image_id': 'image_name',
+        'localization': 'anatom_site_general_challenge'
+    })
+    filepath = os.path.join(output, 'isic_2018.csv')
+    print(f'Saving 2018 ISIC train file to {filepath}')
+    df_meta.to_csv(filepath, index=False)
+
+
+def prepare_isic_2019(root, output):
+    df_train = pd.read_csv(os.path.join(root, 'ISIC_2019_Training_GroundTruth.csv'))
+    df_meta = pd.read_csv(os.path.join(root, 'ISIC_2019_Training_Metadata.csv'))
+    df_train['target'] = df_train['MEL'].astype(int).copy()
+    df_train = pd.merge(df_meta, df_train[['image', 'target']], how='left', on='image')
+    df_train['source'] = 'ISIC_2019'
+    df_train['anatom_site_general'] = df_train['anatom_site_general'].map(melanoma_config.ANATOM_MAP).fillna(df_train['anatom_site_general'])
+    df_train['anatom_site_general'] = df_train['anatom_site_general'].fillna('unknown')
+    df_train = df_train.rename(columns={
+        'image': 'image_name',
+        'anatom_site_general': 'anatom_site_general_challenge'
+    })
+
+    filepath = os.path.join(output, 'isic_2019.csv')
+    print(f'Saving 2019 ISIC train file to {filepath}')
+    df_train.to_csv(filepath, index=False)

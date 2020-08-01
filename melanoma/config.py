@@ -81,3 +81,21 @@ ACTIVATION_MAP = {
     'relu': nn.ReLU,
     'mish': layers.Mish
 }
+
+ANATOM_MAP = {
+    'anterior torso': 'torso',
+    'lateral torso': 'torso',
+    'posterior torso': 'torso',
+    'back': 'torso',
+    'trunk': 'torso',
+    'abdomen': 'torso',
+    'face': 'head/neck',
+    'chest': 'torso',
+    'foot': 'palms/soles',
+    'neck': 'head/neck',
+    'scalp': 'head/neck',
+    'hand': 'palms/soles',
+    'ear': 'head/neck',
+    'genital': 'oral/genital',
+    'acral': 'palms/soles'
+}
