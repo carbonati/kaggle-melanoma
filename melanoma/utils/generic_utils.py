@@ -109,7 +109,7 @@ def get_model_fname(config):
         for k, v in config['subset'].items():
             model_fname += f'_{v}'
     if config.get('tags'):
-        model_fname += f"_{'_'.join(tags)}"
+        model_fname += f"_{'_'.join(config['tags'])}"
     model_fname += f"_{dt_str}"
     return model_fname
 
