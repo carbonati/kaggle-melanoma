@@ -1,5 +1,6 @@
 import os
 import json
+import uuid
 import numpy as np
 import pandas as pd
 import cv2
@@ -91,7 +92,7 @@ def preprocess_images(train_image_dir,
 def generate_cv_folds(df,
                       test_size=0.1,
                       num_folds=10,
-                      train_cols=None,
+                      train_map=None,
                       stratify_test=None,
                       stratify_val=None,
                       index_col='patient_id',
@@ -99,13 +100,17 @@ def generate_cv_folds(df,
                       random_state=42069):
     """Generates a list of `num_folds` with `index_col` values stratified by
     the specified columns
+
+    Parameters
+    ----------
+    train_map : dict (default=None)
+        Dictionary where each key is a column in `df` mapped to a value where
+        any sample in that satifies the mapping is forced in to the train set
     """
-    if train_cols is not None:
-        if not isinstance(train_cols, (list, tuple)):
-            train_cols = [train_cols]
+    if train_map is not None:
         train_ids_force = set()
-        for col in train_cols:
-            train_ids_force.update(df.loc[df[col] == 1, index_col].tolist())
+        for k, v in train_map.items():
+            train_ids_force.update(df.loc[df[k] == v, index_col].tolist())
         train_ids_force = list(train_ids_force)
     else:
         train_ids_force = []
@@ -117,6 +122,7 @@ def generate_cv_folds(df,
             if not isinstance(stratify_test, (tuple, list)):
                 stratify_test = [stratify_test]
 
+            # df_fold.to_csv('df_cv.csv')
             df_fold = df_fold.groupby(index_col)[stratify_test].agg(agg_fnc)
             targets = df_fold.apply(
                 lambda x: '_'.join([str(x[col]) for col in stratify_test]),
@@ -125,8 +131,13 @@ def generate_cv_folds(df,
         else:
             targets = None
 
+        df_fold['stratify'] = targets
+        targets_bad = df_fold['stratify'].value_counts().index[df_fold['stratify'].value_counts() < 2]
+        if len(targets_bad) == 1:
+            df_fold = df_fold.loc[df_fold['stratify'] != targets_bad[0]]
+        df_fold.loc[df_fold['stratify'].isin(targets_bad), 'stratify'] = 'other'
         train_idx, test_idx = train_test_split(df_fold.index,
-                                               stratify=targets,
+                                               stratify=df_fold['stratify'],
                                                test_size=test_size,
                                                random_state=random_state)
     else:
@@ -165,16 +176,22 @@ def generate_cv_folds(df,
     return cv_folds
 
 
-def generate_img_stats(df, meta_dir, target_col='target', name=None):
+def generate_img_stats(df, target_col='target', name=None):
     img_mean = np.zeros(3, np.float32)
     img_var = np.zeros(3, np.float32)
     num_samples = len(df)
 
-    for image_id in tqdm(df['image_name'].values, total=num_samples, desc=name):
-        with open(os.path.join(meta_dir, f'{image_id}.json'), 'r') as f:
+    for row in tqdm(df.itertuples(), total=num_samples, desc=name):
+        with open(os.path.join(row.meta_dir, f'{row.image_name}.json'), 'r') as f:
             meta = eval(json.load(f))
         img_mean += meta['mean']
         img_var += np.asarray(meta['std'])**2
+
+#    for image_id in tqdm(df['image_name'].values, total=num_samples, desc=name):
+#        with open(os.path.join(meta_dir, f'{image_id}.json'), 'r') as f:
+#            meta = eval(json.load(f))
+#        img_mean += meta['mean']
+#        img_var += np.asarray(meta['std'])**2
 
     img_mean /= num_samples
     img_var /= num_samples
@@ -194,8 +211,12 @@ def prepare_isic_2018(root, output):
     df_meta['source'] = 'ISIC_2018'
     df_meta['localization'] = df_meta['localization'].map(melanoma_config.ANATOM_MAP).fillna(df_meta['localization'])
     df_meta['localization'] = df_meta['localization'].fillna('unknown')
+    # assign a new patient_id
+    df_meta['patient_id'] = [str(uuid.uuid4()) for _ in range(len(df_meta))]
+
     df_meta = df_meta.rename(columns={
         'image_id': 'image_name',
+        'age': 'age_approx',
         'localization': 'anatom_site_general_challenge'
     })
     filepath = os.path.join(output, 'isic_2018.csv')
@@ -211,6 +232,9 @@ def prepare_isic_2019(root, output):
     df_train['source'] = 'ISIC_2019'
     df_train['anatom_site_general'] = df_train['anatom_site_general'].map(melanoma_config.ANATOM_MAP).fillna(df_train['anatom_site_general'])
     df_train['anatom_site_general'] = df_train['anatom_site_general'].fillna('unknown')
+    # assign a new patient_id
+    df_train['patient_id'] = [str(uuid.uuid4()) for _ in range(len(df_train))]
+
     df_train = df_train.rename(columns={
         'image': 'image_name',
         'anatom_site_general': 'anatom_site_general_challenge'

@@ -7,9 +7,12 @@ import datetime
 import shutil
 import random
 import pprint
+import operator
 import numpy as np
 import torch
 import multiprocessing as mp
+from functools import reduce
+from itertools import product
 
 
 # generic utils
@@ -152,3 +155,12 @@ def cleanup_ckpts(model_dir, min_steps=5, keep_n=5):
     else:
         print(f'removing model directory {model_dir}')
         shutil.rmtree(model_dir)
+
+
+
+def deep_get(dictionary, *keys):
+    return reduce(lambda d, key: d.get(key) if d else None, keys, dictionary)
+
+
+def subset_df(df, conditions):
+    return df.loc[reduce(operator.and_, conditions(df), True)]

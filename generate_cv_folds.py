@@ -9,6 +9,7 @@ warnings.filterwarnings('ignore')
 
 from melanoma.utils.generic_utils import load_config_from_yaml
 from melanoma.utils import data_utils
+from melanoma.data.preprocess import generate_cv_folds
 
 
 def main(config):
@@ -28,9 +29,9 @@ def main(config):
 
     df_train = data_utils.load_data(**config['input'])
     df_patient = df_train.groupby('patient_id').apply(data_utils.patient_agg_fnc).reset_index()
-
 	# fill mean age
     df_patient = data_utils.fill_na(df_patient, 'age_mean', how='mean')
+
 
     preprocess_config = config.get('preprocess', {})
     for k, v in preprocess_config.items():
@@ -51,7 +52,7 @@ def main(config):
                               on='patient_id')
         df_patient = data_utils.fill_na(df_patient, 'anatom_site_general_challenge', how='missing')
 
-    cv_folds = data_utils.generate_cv_folds(df_patient, **config['cv_folds'])
+    cv_folds = generate_cv_folds(df_patient, **config['cv_folds'])
     df_train['fold'] = data_utils.get_fold_col(df_train, cv_folds)
     df_fold = df_train.groupby('fold').apply(data_utils.fold_agg_fnc).reset_index()
     print(df_fold)

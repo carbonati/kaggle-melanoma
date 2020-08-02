@@ -99,3 +99,13 @@ ANATOM_MAP = {
     'genital': 'oral/genital',
     'acral': 'palms/soles'
 }
+
+TRAIN_COLS = [
+    'image_name',
+    'patient_id',
+    'sex',
+    'age_approx',
+    'anatom_site_general_challenge',
+    'source',
+    'target'
+]

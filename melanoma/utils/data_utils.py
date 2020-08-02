@@ -7,13 +7,17 @@ import pickle
 from sklearn.preprocessing import KBinsDiscretizer
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
+import config as melanoma_config
+
 
 def load_data(filepath,
               duplicate_path=None,
               cv_folds_dir=None,
+              external_filepaths=None,
               keep_prob=1,
               random_state=42069):
     df_mela = pd.read_csv(filepath)
+    df_mela['source'] = 'ISIC_2020'
 
     # need to add more logic here for the test set
     if duplicate_path is not None:
@@ -21,6 +25,15 @@ def load_data(filepath,
         image_ids_duped = df_dupes['ISIC_id_paired'].tolist()
         df_mela = df_mela.loc[~df_mela['image_name'].isin(image_ids_duped)].reset_index(drop=True)
 
+    if external_filepaths is not None:
+        if not isinstance(external_filepaths, list):
+            external_filepaths = [external_filepaths]
+        for filepath in external_filepaths:
+            print(f'Adding external data from {filepath}')
+            df_ext = pd.read_csv(filepath)
+            df_mela = pd.concat((df_mela[melanoma_config.TRAIN_COLS], df_ext[melanoma_config.TRAIN_COLS]),
+                                axis=0,
+                                ignore_index=True)
     # subset for testing
     if keep_prob < 1 and keep_prob > 0:
         df_mela = df_mela.sample(frac=keep_prob,
@@ -31,7 +44,7 @@ def load_data(filepath,
         cv_folds = load_cv_folds(os.path.join(cv_folds_dir, 'cv_folds.p'))
         df_mela['fold'] = get_fold_col(df_mela, cv_folds)
 
-    df_mela = fill_na(df_mela, 'anatom_site_general_challenge', how='missing')
+    df_mela = fill_na(df_mela, 'anatom_site_general_challenge', how='unknown')
     return df_mela
 
 
@@ -112,7 +125,7 @@ def get_fold_col(df, cv_folds, index_col='patient_id'):
         if i < num_folds:
             s.loc[s.index.isin(val_idx)] = i
         else:
-            s.loc[s.index.isin(val_idx)] = 'test'
+            s.loc[s.index.isin(val_idx)] = 'holdout'
     return s.values
 
 
@@ -146,6 +159,8 @@ def patient_agg_fnc(x):
 def fill_na(df, col, how='mean'):
     if how == 'missing':
         df.loc[df[col].isnull(), col] = 'missing'
+    elif how == 'unknown':
+        df.loc[df[col].isnull(), col] = 'unknown'
     else:
         df.loc[df[col].isnull(), col] = df[col].agg(how)
     return df
