@@ -1,6 +1,7 @@
 import albumentations
 import numpy as np
 import config as melanoma_config
+import utils.generic_utils as utils
 
 
 class MelanomaAugmentor:
@@ -37,9 +38,10 @@ class MelanomaAugmentor:
 
         self.transform = self._set_transforms()
 
-    def _transform(self, img, stratify_col=None, stratify_value=None):
+    def _transform(self, img, stratify_list=None):
         if self.norm_cols is not None:
-            img = (img - self._normalize[stratify_col][stratify_value]['mean']) / self._normalize[stratify_col][stratify_value]['std']
+            norm_dict = utils.deep_get(self._normalize, *stratify_list)
+            img = (img - norm_dict['mean']) / self._normalize['std']
         elif self._normalize is not None:
             img = (img - self._normalize['mean']) / self._normalize['std']
         return self.transform(image=img.astype(self.dtype))['image']

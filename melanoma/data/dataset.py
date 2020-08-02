@@ -42,7 +42,6 @@ class MelanomaDataset(Dataset):
 
         self.files = None
         self.image_id_to_filepath = None
-        self._aug_params = None
 
         self._set_image_id_to_filepaths()
         self._prepare_args()
@@ -51,17 +50,16 @@ class MelanomaDataset(Dataset):
         return len(self.image_ids)
 
     def __getitem__(self, index):
-        img = data_utils.load_image(self.root, self.image_ids[index], self.img_format)
-        aug_params = deepcopy(self._aug_params)
+        df_index = self.df.iloc[index]
+        img = data_utils.load_image(df_index['image_dir'], self.image_ids[index], self.img_format)
+
+        stratify_list = []
         if self.norm_cols is not None:
-            df_index = self.df.iloc[index]
-
             for c in self.norm_cols:
-                aug_params['stratify_col'].append(c)
-                aug_params['stratify_value'].append(df_index[c])
-            aug_params = {k: '_'.join(v) for k, v in aug_params.items()}
+                stratify_list.append(c)
+                stratify_list.append(df_index[c])
 
-        img = self.preprocess(img, **aug_params)
+        img = self.preprocess(img, stratify_list=stratify_list)
         img = torch.tensor(img, dtype=self._dtype_torch).permute(2, 0, 1)
 
         if self.training:
@@ -70,13 +68,7 @@ class MelanomaDataset(Dataset):
             return img
 
     def _prepare_args(self):
-        if self.norm_cols is not None:
-            self._aug_params = {
-                'stratify_col': [],
-                'stratify_value': []
-            }
-        else:
-            self._aug_params = {}
+        pass
 
     def _set_image_id_to_filepaths(self):
         self.image_id_to_filepath = defaultdict(list)

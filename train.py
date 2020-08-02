@@ -53,17 +53,21 @@ def train(config):
     df_mela = data_utils.load_data(config['input']['train'],
                                    duplicate_path=config['input']['duplicates'],
                                    cv_folds_dir=config['input']['cv_folds'],
+                                   external_filepaths=config['input'].get('external_filepaths'),
+                                   image_map=config['input']['image_map'],
                                    keep_prob=config.get('keep_prob', 1.),
                                    random_state=config['random_state'])
-
+    df_mela['image_dir'] = df_mela['image_dir'].apply(lambda x: os.path.join(x, 'train'))
 
     fold_ids = config.get('fold_ids', list(set(df_mela['fold'].tolist())))
     fold_ids = fold_ids if isinstance(fold_ids, list) else [fold_ids]
 
     if config['input'].get('test'):
         df_test = data_utils.load_data(config['input']['test'],
+                                       image_map=config['input']['image_map'],
                                        keep_prob=config.get('keep_prob', 1.),
                                        random_state=config['random_state'])
+        df_test['image_dir'] = df_test['image_dir'].apply(lambda x: os.path.join(x, 'test'))
     else:
         df_test = None
 

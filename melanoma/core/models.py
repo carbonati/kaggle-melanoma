@@ -32,7 +32,7 @@ class BaseModel(nn.Module):
         self.encoder, in_features = model_utils.get_backbone(self._backbone,
                                                              self._pretrained)
         self.pool_layer = melanoma_config.POOLING_MAP[self._pool_method](**self._pool_params['params'])
-        in_features = in_features * 2 if self._pool_method == 'concat' else in_features
+        # in_features = in_features * 2 if self._pool_method == 'concat' else in_features
 
         if self._output_net_params is not None:
             #hidden_dim = self._output_net_params.get('hidden_dim', 512)
@@ -43,10 +43,13 @@ class BaseModel(nn.Module):
 
             modules = []
             if self._output_net_params.get('bn'):
-                modules.append(nn.BatchNorm2d(in_features, **self._output_net_params['bn']))
+                modules.append(nn.BatchNorm2d(in_features,
+                                              **self._output_net_params['bn']))
             modules.append(self.pool_layer)
+            in_features = in_features * 2 if self._pool_method == 'concat' else in_features
             if self._output_net_params.get('dropout'):
                 modules.append(nn.Dropout(self._output_net_params['dropout']))
+
             modules.append(nn.Linear(in_features, self._num_classes, bias=False))
             self.output_net = nn.Sequential(*modules)
         else:

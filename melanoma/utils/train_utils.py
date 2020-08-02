@@ -56,7 +56,6 @@ def get_criterion(method,
     if params.get('class_weight') == 'balanced' and df_train is not None:
         params.pop('class_weight')
         pos_weight = (df_train[target_col] == 0).sum() / (df_train[target_col] == 1).sum()
-        pos_weight = 3.5
         print(f'Setting `pos_weight` to {pos_weight}')
         params = dict(params, **{'pos_weight': torch.tensor(pos_weight)})
 

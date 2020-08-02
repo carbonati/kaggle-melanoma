@@ -14,6 +14,7 @@ def load_data(filepath,
               duplicate_path=None,
               cv_folds_dir=None,
               external_filepaths=None,
+              image_map=None,
               keep_prob=1,
               random_state=42069):
     df_mela = pd.read_csv(filepath)
@@ -34,11 +35,14 @@ def load_data(filepath,
             df_mela = pd.concat((df_mela[melanoma_config.TRAIN_COLS], df_ext[melanoma_config.TRAIN_COLS]),
                                 axis=0,
                                 ignore_index=True)
+
     # subset for testing
     if keep_prob < 1 and keep_prob > 0:
         df_mela = df_mela.sample(frac=keep_prob,
                                  replace=False,
                                  random_state=random_state).reset_index(drop=True)
+    if image_map is not None:
+        df_mela['image_dir'] = df_mela['source'].map(image_map)
 
     if cv_folds_dir is not None:
         cv_folds = load_cv_folds(os.path.join(cv_folds_dir, 'cv_folds.p'))
