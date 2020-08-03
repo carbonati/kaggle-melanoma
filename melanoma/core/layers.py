@@ -16,6 +16,28 @@ class AdaptiveConcatPool2d(nn.Module):
         return torch.cat([self.mp(x), self.ap(x)], 1).view(batch_size, -1)
 
 
+class AdaptiveAvgPool2d(nn.Module):
+    def __init__(self, size=None):
+        super().__init__()
+        self._size = size or (1, 1)
+        self.ap = nn.AdaptiveAvgPool2d(self._size)
+
+    def forward(self, x):
+        batch_size = len(x)
+        return self.ap(x).view(batch_size, -1)
+
+
+class AdaptiveMaxPool2d(nn.Module):
+    def __init__(self, size=None):
+        super().__init__()
+        self._size = size or (1, 1)
+        self.mp = nn.AdaptiveMaxPool2d(self._size)
+
+    def forward(self, x):
+        batch_size = len(x)
+        return self.mp(x).view(batch_size, -1)
+
+
 def gem(x, p=3, eps=1e-6):
     return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1./p)
 

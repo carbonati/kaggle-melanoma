@@ -22,6 +22,25 @@ class BCELabelSmoothingLoss(nn.Module):
         return loss
 
 
+class BCELoss(_Loss):
+
+    def __init__(self, logits=True, pos_weight=None):
+        super(BCELoss, self).__init__()
+        self.logits = logits
+        self.pos_weight = pos_weight
+        if self.pos_weight is None:
+            self._pos_weight = torch.tensor(1.)
+        else:
+            self._pos_weight = torch.tensor(self.pos_weight)
+
+    def forward(self, pred, target):
+        if self.logits:
+            pred = torch.sigmoid(pred)
+        pred = torch.clamp(pred, min=1e-7, max=1-1e-7)
+        loss = target * torch.log(pred) + self._pos_weight * (1-target) * torch.log(1-pred)
+        return torch.neg(torch.mean(loss))
+
+
 class LabelSmoothingLoss(nn.Module):
     def __init__(self, classes, smoothing=0.0, dim=-1):
         super(LabelSmoothingLoss, self).__init__()

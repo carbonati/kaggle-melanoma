@@ -22,6 +22,7 @@ def get_session_attr(config):
         'criterion_params': [config['criterion'].get('params', {})],
         'batch_size': [config['batch_size']],
         'class_weight': [config.get('class_weight', config['criterion'].get('sample_weight', False))],
+        'norm_cols': [config['data'].get('norm_cols')],
         'max_norm': [config['trainer'].get('max_norm')],
         'fp_16': [config.get('fp_16', False)],
         'random_state': [config['random_state']]

@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import albumentations
 from torch.utils import data
 from core import losses
@@ -52,7 +53,8 @@ CRITERION_MAP = {
     'bce_smth': losses.BCELabelSmoothingLoss,
     'lbl_smth': losses.LabelSmoothingLoss,
     'mse': nn.MSELoss,
-    'bce': nn.BCEWithLogitsLoss,
+    # 'bce': nn.BCEWithLogitsLoss,
+    'bce': losses.BCELoss,
     'l1': nn.L1Loss,
     'l1_smth': nn.SmoothL1Loss,
     'cauchy': losses.CauchyLoss,
@@ -70,7 +72,9 @@ SAMPLER_MAP = {
 
 POOLING_MAP = {
     'concat': layers.AdaptiveConcatPool2d,
-    'gem': layers.GeM
+    'gem': layers.GeM,
+    'avg': layers.AdaptiveAvgPool2d,
+    'max': layers.AdaptiveMaxPool2d
 }
 
 #POSTPROCESSOR_MAP = {

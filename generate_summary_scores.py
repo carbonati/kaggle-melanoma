@@ -50,6 +50,11 @@ if __name__ == '__main__':
                         default=False,
                         action='store_true',
                         help='Sort table in ascending order by `sort_by`.')
+    #parser.add_argument('--experiment',
+    #                    '-e',
+    #                    default=None,
+    #                    action=str,
+    #                    help='Experiment name to subset')
     args = parser.parse_args()
 
     main(args)

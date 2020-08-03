@@ -1,6 +1,6 @@
 from operator import itemgetter
 from torch.utils.data import Sampler, DistributedSampler, Dataset
-from utils.data_utils import stratify_batches
+from utils import data_utils
 
 
 class BatchStratifiedSampler(Sampler):
@@ -23,7 +23,7 @@ class BatchStratifiedSampler(Sampler):
         return len(self.indices)
 
     def __iter__(self):
-        indices = stratify_batches(
+        indices = data_utils.stratify_batches(
             self.indices,
             self.labels,
             self.batch_size,
