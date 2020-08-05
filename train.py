@@ -201,11 +201,16 @@ def train(config):
                                               df_train=df_train)
 
         if config.get('fp_16'):
+            opt_level = config.get('opt_level', 'O2')
+            keep_bn_fp32 = config.get('keep_batchnorm_fp32', True)
+            if opt_level == 'O1':
+                keep_bn_fp32 = None
+            loss_scale = config.get('loss_scale', 'dynamic')
             model, optim = amp.initialize(model,
                                           optim,
-                                          opt_level=config.get('opt_level', 'O2'),
-                                          loss_scale='dynamic',
-                                          keep_batchnorm_fp32=config.get('keep_batchnorm_fp32', True))
+                                          opt_level=opt_level,
+                                          loss_scale=loss_scale,
+                                          keep_batchnorm_fp32=keep_bn_fp32)
 
         # training session for a given fold
         trainer = Trainer(model,
@@ -226,7 +231,7 @@ def train(config):
         df_hist.to_csv(os.path.join(ckpt_dir, 'history.csv'), index=False)
 
         # generate predictions table from the best step model
-        trainer.model = model_utils.load_model(trainer.ckpt_dir, trainer.best_step)
+        trainer.model = model_utils.load_model(trainer.ckpt_dir, step='val_roc_auc_score')
         if config['local_rank'] == 0:
             num_bags = config.get('num_bags', 1)
             print(f'\nGenerating {num_bags} validation prediction(s).')
@@ -256,8 +261,8 @@ if __name__ == '__main__':
                         type=str,
                         help='Path to configurable file.')
     parser.add_argument('--local_rank', '-r', default=0, type=int)
-    parser.add_argument('--distributed', '-d', default=False, action="store_true")
-    parser.add_argument('--fp_16', '-fp16', default=False, action="store_true")
+    parser.add_argument('--distributed', '-d', default=None, action="store_true")
+    parser.add_argument('--fp_16', '-fp16', default=None, action="store_true")
     parser.add_argument('--steps', '-s', default=None, type=int)
     parser.add_argument('--keep_prob', '-p', default=None, type=float)
     parser.add_argument('--batch_size', '-bs', default=None, type=int)
