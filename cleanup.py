@@ -5,13 +5,13 @@ import shutil
 import argparse
 
 
-def cleanup_log_dir(root, min_steps=5, keep_n=5):
+def cleanup_log_dir(root, min_steps=4, keep_n=8):
     for model_name in os.listdir(root):
         model_dir = os.path.join(root, model_name)
         cleanup_ckpts(model_dir, min_steps, keep_n)
 
 
-def cleanup_ckpts(model_dir, min_steps=5, keep_n=5):
+def cleanup_ckpts(model_dir, min_steps=4, keep_n=5):
     if len(os.listdir(model_dir)) == 0:
         shutil.rmtree(model_dir)
         return
@@ -20,6 +20,8 @@ def cleanup_ckpts(model_dir, min_steps=5, keep_n=5):
     fold_dirs = glob.glob(os.path.join(model_dir, 'fold_*'))
     if len(fold_dirs) > 0:
         for fold_dir in fold_dirs:
+            if os.path.exists(os.path.join(fold_dir, 'val_predictions.csv')):
+                continue
             ckpt_files = []
             max_step = 0
             for fn in os.listdir(fold_dir):
@@ -62,7 +64,7 @@ if __name__ == '__main__':
                         type=str,
                         help='Path to model directory.')
     parser.add_argument('--keep_n', '-n', default=5, type=int)
-    parser.add_argument('--min_steps', '-m', default=5, type=int)
+    parser.add_argument('--min_steps', '-m', default=4, type=int)
     parser.add_argument('--keyword', '-k', default='_exp', type=str)
     args = parser.parse_args()
     main(args)

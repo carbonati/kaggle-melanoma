@@ -6,7 +6,7 @@ import albumentations
 from torch.utils import data
 from core import losses
 from core import layers
-from data.samplers import BatchStratifiedSampler
+from data import samplers
 
 # update root path for pretrained models
 ROOT_PATH = os.path.join(os.getenv('HOME'), 'workspace/kaggle-melanoma')
@@ -67,14 +67,16 @@ SAMPLER_MAP = {
     'random': data.RandomSampler,
     'sequential': data.SequentialSampler,
     'weighted_random': data.WeightedRandomSampler,
-    'batch':  BatchStratifiedSampler
+    'imbalanced': samplers.ImbalancedSampler,
+    'batch': samplers.BatchStratifiedSampler
 }
 
 POOLING_MAP = {
     'concat': layers.AdaptiveConcatPool2d,
     'gem': layers.GeM,
     'avg': layers.AdaptiveAvgPool2d,
-    'max': layers.AdaptiveMaxPool2d
+    'max': layers.AdaptiveMaxPool2d,
+    'concat_gem': layers.AdaptiveConcatGeMPool2d,
 }
 
 #POSTPROCESSOR_MAP = {
@@ -112,4 +114,14 @@ TRAIN_COLS = [
     'anatom_site_general_challenge',
     'source',
     'target'
+]
+
+
+BINARY_METRICS = [
+    'precision_score',
+    'recall_score',
+    'accuracy_score',
+    'f1_score',
+    'specificity_score',
+    'fpr_score'
 ]

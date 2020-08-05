@@ -5,6 +5,7 @@ import time
 import numpy as np
 import tqdm
 import torch
+from sklearn import metrics as sk_metrics
 from torch.utils.data import DataLoader, RandomSampler
 
 import config as melanoma_config
@@ -12,6 +13,7 @@ from data.dataset import MelanomaDataset
 from data.augmentation import MelanomaAugmentor
 from data.samplers import BatchStratifiedSampler, DistributedSamplerWrapper
 from utils import model_utils
+from evaluation import metrics as eval_metrics
 
 
 def get_optimizer(method, model, params=None):
@@ -143,3 +145,34 @@ def get_sampler(ds,
     if distributed:
         sampler = DistributedSamplerWrapper(sampler)
     return sampler
+
+
+def sigmoid(x):
+    return 1 / (1+np.exp(-x))
+
+
+def compute_optimal_th(y_true, y_pred):
+    fpr, tpr, thresholds = sk_metrics.roc_curve(y_true, y_pred)
+    optimal_idx = np.argmax(tpr - fpr)
+    optimal_threshold = thresholds[optimal_idx]
+    return optimal_threshold
+
+
+def compute_scores(y_true, y_pred, metrics, logits=True, th=''):
+    if logits:
+        y_pred = sigmoid(y_pred)
+    th = compute_optimal_th(y_true, y_pred)
+    scores = {}
+    for name in metrics:
+        if hasattr(sk_metrics, name):
+            fn = getattr(sk_metrics, name)
+        elif hasattr(eval_metrics, name):
+            fn = getattr(eval_metrics, name)
+        else:
+            raise ValueError(f'Unrecognized `metric` {name}.')
+        if name in melanoma_config.BINARY_METRICS:
+            y_pred_final = y_pred > th
+        else:
+            y_pred_final = y_pred
+        scores[name] = fn(y_true, y_pred_final)
+    return scores

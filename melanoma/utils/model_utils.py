@@ -46,11 +46,18 @@ def load_state_dict(ckpt_dir, step=None, filename=None, device='cuda'):
     return state_dict
 
 
-def load_best_state_dict(ckpt_dir, device='cuda'):
-    steps = [int(fn.split('_')[1]) for fn in os.listdir(ckpt_dir) if fn.startswith('ckpt_')]
-    if len(steps) == 0:
-        raise ValueError(f'Found 0 ckpts in {ckpt_dir}')
-    best_step = max(steps)
+def load_best_state_dict(ckpt_dir, step=None, device='cuda'):
+    if step is None:
+        steps = [int(fn.split('_')[1]) for fn in os.listdir(ckpt_dir) if fn.startswith('ckpt_')]
+        if len(steps) == 0:
+            raise ValueError(f'Found 0 ckpts in {ckpt_dir}')
+        best_step = max(steps)
+    elif isinstance(step, str):
+        df_hist = pd.read_csv(os.path.join(ckpt_dir, 'history.csv'))
+        if step == 'val_loss':
+            best_step = df_hist.loc[df_hist[step].idxmin(), 'epoch'].iloc[0]
+        else:
+            best_step = df_hist.loc[df_hist[step].idxmax(), 'epoch'].iloc[0]
     filename = [fn for fn in os.listdir(ckpt_dir) if fn.startswith(f'ckpt_{best_step:04d}')][0]
     state_dict = load_state_dict(ckpt_dir, filename=filename, device=device)
     return state_dict
@@ -66,10 +73,10 @@ def load_model(ckpt_dir,
     model_params = config['model']
     model_params['pretrained'] = False
     model_params.update(kwargs)
-    if step == 'best':
-        state_dict = load_best_state_dict(ckpt_dir, device=device)
+    if filename is None:
+        state_dict = load_best_state_dict(ckpt_dir, step=step, device=device)
     else:
-        state_dict = load_state_dict(ckpt_dir, step, filename, device=device)
+        state_dict = load_state_dict(ckpt_dir, filename=filename, device=device)
     model = get_model(**model_params).to(device)
     model.load_state_dict(state_dict)
     model.eval()

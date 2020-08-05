@@ -5,9 +5,20 @@ import datetime
 import numpy as np
 import pandas as pd
 
-from utils import data_utils, model_utils
+from utils import data_utils, model_utils, train_utils
 from evaluation.metrics import compute_auc
 
+METRICS = [
+    'roc_auc_score',
+    'accuracy_score',
+    'precision_score',
+    'recall_score',
+    'f1_score',
+    'average_precision_score',
+    'specificity_score',
+    'fpr_score',
+    'pos_rate'
+]
 
 def get_session_attr(config):
     attr = {
@@ -16,6 +27,8 @@ def get_session_attr(config):
         'sampler': [config['sampler']['method']],
         'optim': [config['optimizer'].get('method')],
         'lr': [config['optimizer']['params']['lr']],
+        'pool': [config['model']['pool_params']],
+        'output_net': [config['model'].get('output_net_params')],
         'scheduler': [config['scheduler'].get('method')],
         'scheduler_params': [config['scheduler'].get('params')],
         'criterion': [config['criterion']['method']],
@@ -36,6 +49,23 @@ def get_ckpt_dt(model_name):
     return dt
 
 
+def compute_summary_scores(fold_dir, metrics=None, group='val'):
+    if metrics is None:
+        metrics = METRICS
+    filepath = os.path.join(fold_dir, f'{group}_predictions.csv')
+    if os.path.exists(filepath):
+        df_val = pd.read_csv(filepath)
+        scores = train_utils.compute_scores(df_val['target'],
+                                            df_val['prediction_raw'],
+                                            metrics=metrics)
+        df_scores = pd.DataFrame([list(scores.values())], columns=scores.keys())
+        df_scores.columns = [f'val_{c}' for c in df_scores.columns]
+    else:
+        df_scores = pd.DataFrame([[None] * len(metrics)],
+                                 columns=[f'val_{c}' for c in metrics])
+    return df_scores
+
+
 def generate_df_scores(exp_dirs, df_panda=None):
     df_scores = None
     for exp_dir in exp_dirs:
@@ -51,13 +81,21 @@ def generate_df_scores(exp_dirs, df_panda=None):
                     if os.path.exists(hist_filepath):
                         df_hist = pd.read_csv(hist_filepath)
                         fold = int(fold_dir.split('_')[-1])
+
+                        df_hist = df_hist.rename(columns={'val_roc_auc_score': 'val_auc_score'})
                         best_step = df_hist['val_auc_score'].idxmax()
                         best_val_auc_step = best_step + 1
                         best_val_loss_step = df_hist['val_loss'].idxmin() + 1
 
                         df_best = df_hist.loc[best_step].to_frame().T
+                        df_best = df_best[['epoch', 'loss', 'auc_score', 'val_loss', 'val_auc_score', 'elapsed_time', 'lr']]
+
                         df_best['best_val_auc_step'] = best_val_auc_step
                         df_best['best_val_loss_step'] = best_val_loss_step
+                        df_best['best_val_loss_step_val_auc'] = df_hist.loc[df_hist['epoch'] == best_val_loss_step, 'val_auc_score'].iloc[0]
+                        df_best['best_val_auc_step_val_loss'] = df_hist.loc[df_hist['epoch'] == best_val_auc_step, 'val_loss'].iloc[0]
+                        df_best['best_val_auc_step_auc'] = df_hist.loc[df_hist['epoch'] == best_val_auc_step, 'auc_score'].iloc[0]
+                        df_best['best_val_auc_step_loss'] = df_hist.loc[df_hist['epoch'] == best_val_auc_step, 'loss'].iloc[0]
                         df_best['experiment'] = exp_dir.split('/')[-1]
                         df_best['model_name'] = model_name
                         df_best['fold'] = fold
@@ -77,6 +115,8 @@ def generate_df_scores(exp_dirs, df_panda=None):
                         df_best = df_best.reset_index(drop=True)
                         df_best = pd.concat((df_best,
                                              pd.DataFrame(get_session_attr(config))), axis=1)
+                        df_val_scores = compute_summary_scores(fold_dir, group='val')
+                        df_best = pd.concat((df_best, df_val_scores), axis=1)
                         df_scores = pd.concat((df_scores, df_best), ignore_index=True)
 
     df_scores['dt'] = df_scores['model_name'].apply(get_ckpt_dt)

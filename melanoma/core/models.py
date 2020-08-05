@@ -46,13 +46,20 @@ class BaseModel(nn.Module):
                 modules.append(nn.BatchNorm2d(in_features,
                                               **self._output_net_params['bn']))
             modules.append(self.pool_layer)
-            in_features = in_features * 2 if self._pool_method == 'concat' else in_features
+            if self._pool_method == 'concat':
+                in_features *= 2
+            elif self._pool_method == 'concat_gem':
+                in_features *= 3
             if self._output_net_params.get('dropout'):
                 modules.append(nn.Dropout(self._output_net_params['dropout']))
 
             modules.append(nn.Linear(in_features, self._num_classes, bias=False))
             self.output_net = nn.Sequential(*modules)
         else:
+            if self._pool_method == 'concat':
+                in_features *= 2
+            elif self._pool_method == 'concat_gem':
+                in_features *= 3
             self.output_net = nn.Sequential(
                 self.pool_layer,
                 nn.Linear(in_features, self._num_classes, bias=False)

@@ -85,7 +85,7 @@ def evaluate(config):
         num_workers = config['num_workers']
 
         # instantiate model
-        model = model_utils.load_model(ckpt_dir, step='best')
+        model = model_utils.load_model(ckpt_dir, step=config.get('step', 'best_val_auc'))
         model = model.cuda()
         model = nn.DataParallel(model, device_ids).to(device)
 

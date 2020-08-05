@@ -75,3 +75,16 @@ class Mish(nn.Module):
     def forward(self, x):
         return MishFunction.apply(x)
 
+
+
+class AdaptiveConcatGeMPool2d(nn.Module):
+    def __init__(self, size=None, **kwargs):
+        super().__init__()
+        self._size = size or (1, 1)
+        self.ap = nn.AdaptiveAvgPool2d(self._size)
+        self.mp = nn.AdaptiveMaxPool2d(self._size)
+        self.gem = GeM(**kwargs)
+
+    def forward(self, x):
+        batch_size = len(x)
+        return torch.cat([self.mp(x).reshape(batch_size, -1), self.ap(x).reshape(batch_size, -1), self.gem(x)], 1)

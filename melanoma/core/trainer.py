@@ -14,6 +14,7 @@ except:
 from sklearn.metrics import roc_auc_score, log_loss
 from utils.generic_utils import Logger
 from utils.model_utils import load_model
+from utils.train_utils import compute_scores
 from evaluation.metrics import compute_auc
 
 
@@ -26,6 +27,7 @@ class Trainer:
                  criterion=None,
                  task='clf',
                  scheduler=None,
+                 metrics=None,
                  postprocessor=None,
                  max_norm=None,
                  ckpt_dir=None,
@@ -38,6 +40,7 @@ class Trainer:
         self.criterion = criterion
         self.scheduler = scheduler
         self.postprocessor = postprocessor
+        self._metrics = metrics
         self._task = task
         self.ckpt_dir = ckpt_dir
         self._monitor = monitor
@@ -57,6 +60,8 @@ class Trainer:
 
         if self.logger is None:
             self.logger = sys.stdout
+        if self._metrics is None:
+            self._metrics = ['roc_auc_score']
 
         self._reset()
 
@@ -96,10 +101,12 @@ class Trainer:
             'loss': [],
             'auc_score': [],
             'val_loss': [],
-            'val_auc_score': [],
             'elapsed_time': [],
             'lr': [],
         }
+        for name in self._metrics:
+            self._history[f'val_{name}'] = []
+
         self._empty_cache()
         if self.ckpt_dir is not None:
             self.logger = Logger(os.path.join(self.ckpt_dir, 'train_history.log'))
@@ -131,7 +138,7 @@ class Trainer:
     def _save_model(self):
         fname = f"ckpt_{self._global_step:04d}"
         fname += f"_{self._history['val_loss'][-1]:.6f}"
-        fname += f"_{self._history['val_auc_score'][-1]:.6f}.pt"
+        fname += f"_{self._history['val_roc_auc_score'][-1]:.6f}.pt"
         filepath = os.path.join(self.ckpt_dir, fname)
         if self._fp_16:
             torch.save({
@@ -185,11 +192,14 @@ class Trainer:
                         self.postprocessor.fit(y_pred, y_val.data.cpu().numpy().astype(int))
 
                     y_pred = self.postprocess(y_pred)
-                    val_score = compute_auc(y_val, y_pred)
-
+                    # val_score = compute_auc(y_val, y_pred)
+                    str_format += f' - val_loss : {val_loss:.4f}'
                     self._history['val_loss'].append(val_loss)
-                    self._history['val_auc_score'].append(val_score)
-                    str_format += f' - val_loss : {val_loss:.4f} - val_auc_score : {val_score:.4f}'
+
+                    val_scores = compute_scores(y_val, y_pred, self._metrics)
+                    for k, v in val_scores.items():
+                        str_format += f' - val_{k} : {v:.4f}'
+                        self._history[f'val_{k}'].append(v)
 
                     if self.scheduler is not None:
                         str_format += f" - lr : {self.optim.param_groups[0]['lr']:.8f}"
@@ -200,11 +210,11 @@ class Trainer:
                         self._best_loss = val_loss
                         self._best_loss_step = step + 1
                         self._new_best = True
-                    if val_score > self._best_score:
+                    if val_scores['roc_auc_score'] > self._best_score:
                         if len(best_str) > 0:
                             best_str += ' - '
-                        best_str += f'`val_auc_score` improved from {self._best_score:.6f} to {val_score:.6f}'
-                        self._best_score = val_score
+                        best_str += f"`val_roc_auc_score` improved from {self._best_score:.6f} to {val_scores['roc_auc_score']:.6f}"
+                        self._best_score = val_scores['roc_auc_score']
                         self._best_score_step = step + 1
                         self._new_best = True
 
