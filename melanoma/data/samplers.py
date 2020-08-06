@@ -1,6 +1,7 @@
 import torch
-from torch.utils.data import Sampler, DistributedSampler, Dataset
+import numpy as np
 from operator import itemgetter
+from torch.utils.data import Sampler, DistributedSampler, Dataset
 from utils import data_utils
 
 
@@ -106,3 +107,34 @@ class ImbalancedSampler(Sampler):
 
     def __len__(self):
         return self.num_samples
+
+
+class OverSampler(Sampler):
+    """Oversampler class to balance positive and negative samples."""
+
+    def __init__(self, dataset, indices=None, labels=None):
+        self.dataset = dataset
+        self.num_samples = len(dataset)
+        self.indices = list(range(self.num_samples)) if indices is None else indices
+        self.labels = self.dataset.get_labels() if labels is None else labels
+        self._label_count = {}
+        self._label_indices = {}
+        for c in np.unique(self.labels):
+            label_indices = [i for i in self.indices if self.labels[i] == c]
+            self._label_indices[c] = label_indices
+            self._label_count[c] = len(label_indices)
+        self._num_oversampled = self._label_count[0] * 2
+
+    def __len__(self):
+        return self._num_oversampled
+
+    def __iter__(self):
+        sampled_pos_indices = np.random.choice(self._label_indices[1],
+                                               self._label_count[0],
+                                               replace=True)
+        indices = np.concatenate((self._label_indices[0], sampled_pos_indices))
+        return (
+            indices[i]
+            for i
+            in np.random.choice(range(len(self)), len(self), replace=False)
+        )

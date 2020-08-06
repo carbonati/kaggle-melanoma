@@ -5,6 +5,7 @@ import time
 import numpy as np
 import tqdm
 import torch
+from copy import deepcopy
 from sklearn import metrics as sk_metrics
 from torch.utils.data import DataLoader, RandomSampler
 
@@ -71,6 +72,7 @@ def get_augmentors(params,
                    norm_cols=None,
                    tta_val=False,
                    tta_test=True,
+                   train_only=None,
                    fp_16=False):
     if params is None or len(params) == 0:
        train_aug = None
@@ -79,20 +81,27 @@ def get_augmentors(params,
     else:
         dtype = 'float16' if fp_16 else 'float32'
         train_aug = MelanomaAugmentor(params, norm_cols=norm_cols, dtype=dtype)
+        print(params.keys())
+        eval_params = deepcopy(params)
+        if train_only is not None:
+            for p in train_only:
+                print(f'Removing `{p}` from eval augmentations.')
+                eval_params.pop(p)
+        print(eval_params.keys())
 
         if tta_val:
-            val_aug = MelanomaAugmentor(params, norm_cols=norm_cols, dtype=dtype)
+            val_aug = MelanomaAugmentor(eval_params, norm_cols=norm_cols, dtype=dtype)
         elif 'normalize' in params:
-            val_aug = MelanomaAugmentor({'normalize': params['normalize']},
+            val_aug = MelanomaAugmentor({'normalize': eval_params['normalize']},
                                         norm_cols=norm_cols,
                                         dtype=dtype)
         else:
             val_aug = None
 
         if tta_test:
-            test_aug = MelanomaAugmentor(params, norm_cols=norm_cols)
+            test_aug = MelanomaAugmentor(eval_params, norm_cols=norm_cols)
         elif 'normalize' in params:
-            test_aug = MelanomaAugmentor({'normalize': params['normalize']}, norm_cols=norm_cols)
+            test_aug = MelanomaAugmentor({'normalize': eval_params['normalize']}, norm_cols=norm_cols)
         else:
             test_aug = None
 
@@ -142,8 +151,8 @@ def get_sampler(ds,
     else:
         sampler = None
 
-    if distributed:
-        sampler = DistributedSamplerWrapper(sampler)
+    #if distributed:
+    #    sampler = DistributedSamplerWrapper(sampler)
     return sampler
 
 

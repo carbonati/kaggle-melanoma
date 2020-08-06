@@ -7,6 +7,7 @@ from torch.utils import data
 from core import losses
 from core import layers
 from data import samplers
+from data import augmentation
 
 # update root path for pretrained models
 ROOT_PATH = os.path.join(os.getenv('HOME'), 'workspace/kaggle-melanoma')
@@ -33,7 +34,16 @@ AUGMENTATION_MAP = {
     'normalize': albumentations.Normalize,
     'brightness': albumentations.RandomBrightness,
     'contrast': albumentations.RandomContrast,
-    'shift': albumentations.ShiftScaleRotate
+    'brightness_constrast': albumentations.RandomBrightnessContrast,
+    'shift': albumentations.ShiftScaleRotate,
+    'gray': albumentations.ToGray,
+    'pca': albumentations.FancyPCA,
+    'hue': albumentations.HueSaturationValue,
+    'gauss_noise': albumentations.GaussNoise,
+    'gauss_blur': albumentations.GaussianBlur,
+    'compress': albumentations.ImageCompression,
+    'dropout': augmentation.CoarseDropout,
+    'one_of': albumentations.OneOf
 }
 
 ARCH_TO_PRETRAINED = {
@@ -68,7 +78,8 @@ SAMPLER_MAP = {
     'sequential': data.SequentialSampler,
     'weighted_random': data.WeightedRandomSampler,
     'imbalanced': samplers.ImbalancedSampler,
-    'batch': samplers.BatchStratifiedSampler
+    'batch': samplers.BatchStratifiedSampler,
+    'oversample': samplers.OverSampler,
 }
 
 POOLING_MAP = {

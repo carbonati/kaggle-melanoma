@@ -289,6 +289,7 @@ class Trainer:
         train_loss_sum = 0
         n_dense = 0
         train_dl.dataset.df['target'].dtype
+        targets = []
         for i, (x, y) in enumerate(train_dl):
             if y.ndim == 1:
                 y = y[..., None]
@@ -314,7 +315,13 @@ class Trainer:
             template_str += f' - auc_score : {train_score_sum/n_dense if n_dense > 0 else 0:.4f}\r'
             sys.stdout.write(template_str)
             sys.stdout.flush()
-
+            targets.append(y.data.cpu().numpy().flatten())
+        #print(targets[0])
+        #print(np.array(list(map(sum, targets))))
+        #props = [sum(targets[i])/len(targets[i]) for i in range(len(targets))]
+        #print(f'mean   : {np.mean(props):.4f}')
+        #print(f'std    : {np.std(props):.4f}')
+        #print(f'median : {np.median(props):.4f}')
         if self._is_cuda:
             torch.cuda.empty_cache()
 

@@ -19,12 +19,10 @@ RUN apt-get update && apt-get install -y \
     libx11-6 \
  && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /workspace
-COPY . /workspace
-
 # miniconda and python
 ENV CONDA_AUTO_UPDATE_CONDA=false
-ENV PATH=/root/miniconda/bin:$PATH
+ENV PATH="/root/miniconda/bin:${PATH}"
+ARG PATH="/root/miniconda/bin:${PATH}"
 RUN curl -sLo ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-py38_4.8.2-Linux-x86_64.sh \
  && chmod +x ~/miniconda.sh \
  && ~/miniconda.sh -b -p ~/miniconda \
@@ -34,6 +32,7 @@ RUN curl -sLo ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-py38
  && conda clean -ya
 
 # install pytorch-CUDA
+# RUN pip install torch==1.5.1+cu101 torchvision==0.6.1+cu101 -f https://download.pytorch.org/whl/torch_stable.html
 RUN conda install -y -c pytorch cudatoolkit=${CUDA} \
  && conda clean -ya
 
@@ -44,8 +43,9 @@ RUN conda install -y -c pytorch cudatoolkit=${CUDA} \
 #RUN sed -i 's/check_cuda_torch_binary_vs_bare_metal(torch.utils.cpp_extension.CUDA_HOME)/pass/g' apex/setup.py
 #RUN pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext"  ./apex
 
-# CMD ["/usr/sbin/sshd", "-D"]
+WORKDIR /workspace
+COPY . /workspace
 
-ENV PYTHONPATH=.
+ENV PYTHONPATH="/workspace:$PYTHONPATH"
 
 CMD ["/bin/bash"]

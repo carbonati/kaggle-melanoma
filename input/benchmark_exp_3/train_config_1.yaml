@@ -1,0 +1,89 @@
+input:
+  train: /root/workspace/kaggle-melanoma/data/train.csv
+  test: /root/workspace/kaggle-melanoma/data/test.csv
+  images: /root/workspace/kaggle-melanoma/data/ISIC_2020/224x224_jpg_100_4/
+  duplicates: /root/workspace/kaggle-melanoma/data/sus/2020_Challenge_duplicates.csv
+  cv_folds: /root/workspace/kaggle-melanoma/data/cv_folds/cv_folds_20200802_0048
+  external_filepaths:
+    - /root/workspace/kaggle-melanoma/data/external_data/isic_2019.csv
+  image_map:
+    ISIC_2020: /root/workspace/kaggle-melanoma/data/ISIC_2020/224x224_jpg_100_4/
+    ISIC_2019: /root/workspace/kaggle-melanoma/data/ISIC_2019/224x224_jpg_100_4/
+  models: /root/workspace/kaggle-melanoma/models
+
+data:
+  norm_cols:
+    - source
+#    - anatom_site_general_challenge
+  seed: 42069
+
+augmentations:
+  tta_val: false
+  tta_test: false
+  transforms:
+    normalize:
+      mean: null
+      std: null
+    transpose:
+      p: 0.5
+    vertical:
+      p: 0.5
+    horizontal:
+      p: 0.5
+
+sampler:
+  method: imbalanced
+
+optimizer:
+  method: adam
+  params:
+    lr: 0.00001
+
+scheduler:
+  method: one_cycle
+  params:
+    max_lr: 0.0005
+
+model:
+  backbone: resnet18
+  pool_params:
+    method: concat
+  output_net_params:
+    bn:
+      eps: 0.001
+      momentum: 0.01
+    dropout: 0.5
+  num_classes: 1
+
+trainer:
+  task: clf
+  max_norm: 1.5
+  metrics:
+    - roc_auc_score
+    - accuracy_score
+    - precision_score
+    - recall_score
+    - f1_score
+    - average_precision_score
+    - specificity_score
+    - fpr_score
+    - pos_rate
+
+criterion:
+  method: bce_smth
+  params:
+    smoothing: 0.03
+    class_weight: balanced
+
+target_col: target
+num_classes: 1
+eval_batch_size: 64
+eval_test: true
+num_bags: 1
+
+num_workers: 8
+batch_size: 64
+distributed: true
+fp_16: true
+opt_level: O1
+random_state: 42069

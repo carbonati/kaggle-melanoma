@@ -189,7 +189,7 @@ def stratify_batches(indices,
                      labels,
                      batch_size,
                      drop_last=False,
-                     random_state=6969):
+                     random_state=None):
     """Returns a list of indices stratified by `labels` where each stratification is
     of size `bathc_size`
     """
@@ -202,7 +202,7 @@ def stratify_batches(indices,
     if remainder > 0:
         remainder_indices = []
         remainder_labels = []
-        rs = np.random.RandomState(5)
+        rs = np.random.RandomState(random_state)
         last_idx = rs.choice(indices, size=remainder, replace=False)
         for idx in indices:
             if idx not in last_idx:
@@ -218,7 +218,7 @@ def stratify_batches(indices,
                           random_state=random_state)
 
     for _, batch_idx in skf.split(remainder_indices, remainder_labels):
-        strat_indices.extend(batch_idx)
+        strat_indices.extend([remainder_indices[idx] for idx in batch_idx])
 
     if not drop_last:
         strat_indices.extend(last_idx)

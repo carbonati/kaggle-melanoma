@@ -43,8 +43,8 @@ def train(config):
         json.dump(config, f)
 
     # log activity from the training session to a logfile
-    if config['local_rank'] == 0:
-        sys.stdout = utils.Tee(os.path.join(model_dir, 'train_history.log'))
+    #if config['local_rank'] == 0:
+        #sys.stdout = utils.Tee(os.path.join(model_dir, 'train_history.log'))
     utils.set_state(config['random_state'])
     device_ids = config.get('device_ids', [0])
     device = torch.device(f"cuda:{device_ids[0]}" if torch.cuda.is_available() else "cpu")
@@ -130,6 +130,7 @@ def train(config):
             norm_cols=config['data'].get('norm_cols'),
             tta_val=config['augmentations'].get('tta_val', False),
             tta_test=config['augmentations'].get('tta_test', True),
+            train_only=config['augmentations'].get('train_only', None),
             fp_16=False
         )
 
@@ -150,9 +151,10 @@ def train(config):
         train_sampler = train_utils.get_sampler(train_ds,
                                                 distributed=config['distributed'],
                                                 batch_size=config['batch_size'] * config['num_gpus'],
-                                                random_state=config['random_state'],
+                                                # random_state=config['random_state'],
                                                 method=config['sampler']['method'],
                                                 params=config['sampler'].get('params', {}))
+        print(train_sampler)
         val_sampler = train_utils.get_sampler(val_ds,
                                               method='sequential',)
                                               #distributed=config['distributed'])
@@ -167,13 +169,13 @@ def train(config):
                             sampler=SequentialSampler(val_ds),
                             num_workers=config['num_workers'])
 
-        if config.get('test_batch_size'):
+        if config.get('eval_eval', False):
             eval_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
                                       df_val,
                                       augmentor=test_aug,
                                       **config['data'])
             eval_dl = DataLoader(eval_ds,
-                                 batch_size=config['test_batch_size'],
+                                 batch_size=config.get('test_batch_size', config['batch_size']),
                                  sampler=SequentialSampler(eval_ds),
                                  num_workers=config['num_workers'])
         else:

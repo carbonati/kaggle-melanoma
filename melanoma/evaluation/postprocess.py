@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import time
+import torch
 from scipy.optimize import minimize
 from sklearn.metrics import roc_auc_score, accuracy_score
 from torch.utils.data import DataLoader, RandomSampler
@@ -35,34 +36,28 @@ def generate_df_pred(trainer,
     if num_bags > 0:
         y_pred_raw = []
         for i in range(num_bags):
-            y_pred_raw.append(trainer.predict(dl).numpy())
+            y_pred_raw.append(torch.sigmoid(trainer.predict(dl)).numpy())
             if mode == 'blend':
                 for sub_dl in dl:
                     sub_dl.dataset.reset_state()
             else:
                 dl.dataset.reset_state()
-        y_pred_raw = np.mean(y_pred_raw, axis=0)
+        y_pred = np.mean(y_pred_raw, axis=0)
     else:
-        y_pred_raw = trainer.predict(dl).numpy()
+        y_pred_raw = torch.sigmoid(trainer.predict(dl)).numpy()
+        y_pred = y_pred_raw
 
     # generate postprocessed predictions
-    num_classes = y_pred_raw.shape[1]
-    if num_classes > 1:
-        pred_cols.extend([f'grade_{i}' for i in range(num_classes)])
-        y_pred = y_pred_raw.argmax(1).astype(int)
-    else:
-        pred_cols.append('prediction_raw')
-        if postprocessor is not None:
-            y_pred = postprocessor.predict(y_pred_raw)
-        else:
-            y_pred = y_pred_raw.round()
-        y_pred = y_pred.flatten().astype(int)
+    pred_cols.extend([f'pred_{i}' for i in range(num_bags)])
+    if postprocessor is not None:
+        y_pred = postprocessor.predict(y_pred)
+    y_pred = y_pred.flatten()
 
     # generate prediction table
     pred_data = [
         image_ids,
         y_pred,
-        *y_pred_raw.T
+        *np.hstack(y_pred_raw).T
     ]
     if y_true is not None:
         pred_data.append(y_true)
@@ -86,8 +81,7 @@ def log_model_summary(df_pred,
 
     # add logic to dynamically score performance across many metrics
     auc = roc_auc_score(df_pred[target_col], df_pred['prediction'])
-    acc = accuracy_score(df_pred[target_col], df_pred['prediction'])
-    logger.write(f'\nauc : {auc:.6f}\nACC : {acc:.6f}')
+    logger.write(f'\nauc : {auc:.6f}')
 
 
 def get_branch(ckpt_dir,
