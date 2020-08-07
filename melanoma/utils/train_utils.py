@@ -151,13 +151,13 @@ def get_sampler(ds,
     else:
         sampler = None
 
-    #if distributed:
-    #    sampler = DistributedSamplerWrapper(sampler)
+    if distributed:
+        sampler = DistributedSamplerWrapper(sampler)
     return sampler
 
 
 def sigmoid(x):
-    return 1 / (1+np.exp(-x))
+    return 1 / (1 + np.exp(-x))
 
 
 def compute_optimal_th(y_true, y_pred):
@@ -183,5 +183,10 @@ def compute_scores(y_true, y_pred, metrics, logits=True, th=''):
             y_pred_final = y_pred > th
         else:
             y_pred_final = y_pred
-        scores[name] = fn(y_true, y_pred_final)
+        try:
+           score = fn(y_true, y_pred_final)
+        except:
+            score = 0
+        scores[name] = score
+
     return scores

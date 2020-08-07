@@ -1,15 +1,15 @@
 input:
-  train: /root/workspace/kaggle-melanoma/data/train.csv
-  test: /root/workspace/kaggle-melanoma/data/test.csv
-  images: /root/workspace/kaggle-melanoma/data/ISIC_2020/224x224_jpg_100_4/
-  duplicates: /root/workspace/kaggle-melanoma/data/sus/2020_Challenge_duplicates.csv
-  cv_folds: /root/workspace/kaggle-melanoma/data/cv_folds/cv_folds_20200802_0048
+  train: /workspace/data/train.csv
+  test: /workspace/data/test.csv
+  images: /workspace/data/ISIC_2020/224x224_jpg_100_4/
+  duplicates: /workspace/data/sus/2020_Challenge_duplicates.csv
+  cv_folds: /workspace/data/cv_folds/cv_folds_20200802_0048
   external_filepaths:
-    - /root/workspace/kaggle-melanoma/data/external_data/isic_2019.csv
+    - /workspace/data/external_data/isic_2019.csv
   image_map:
-    ISIC_2020: /root/workspace/kaggle-melanoma/data/ISIC_2020/224x224_jpg_100_4/
-    ISIC_2019: /root/workspace/kaggle-melanoma/data/ISIC_2019/224x224_jpg_100_4/
-  models: /root/workspace/kaggle-melanoma/models
+    ISIC_2020: /workspace/data/ISIC_2020/224x224_jpg_100_4/
+    ISIC_2019: /workspace/data/ISIC_2019/224x224_jpg_100_4/
+  models: /workspace/models
 
 data:
   norm_cols:
@@ -32,7 +32,7 @@ augmentations:
       p: 0.5
 
 sampler:
-  method: imbalanced
+  method: random
 
 optimizer:
   method: adam
@@ -45,7 +45,7 @@ scheduler:
     max_lr: 0.0005
 
 model:
-  backbone: resnet18
+  backbone: efficientnet-b1
   pool_params:
     method: concat
   output_net_params:
@@ -72,17 +72,18 @@ trainer:
 criterion:
   method: bce_smth
   params:
-    smoothing: 0.03
-    class_weight: balanced
+    smoothing: 0.05
+    # class_weight: balanced
 
 target_col: target
 num_classes: 1
 eval_batch_size: 64
+# eval_eval: true
 eval_test: true
 num_bags: 1
 
-num_workers: 8
-batch_size: 64
+num_workers: 16
+batch_size: 32
 distributed: true
 fp_16: true
 opt_level: O1

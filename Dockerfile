@@ -26,7 +26,16 @@ RUN apt-get update && apt-get install -y \
 RUN conda install cython -y && conda clean --all
 
 RUN pip install -U pip
+RUN conda install sklearn \
+                  pandas \
+                  tqdm \
+                  Pillow \
+                  ipython \
+                  opencv-python \
+                  albumentations
 
+RUN pip install efficientnet_pytorch
+RUN pip install pretrainedmodels
 
 WORKDIR /workspace
 COPY . /workspace
@@ -45,7 +54,6 @@ COPY . /workspace
 ## install pytorch-CUDA
 #RUN conda install -y -c pytorch cudatoolkit=${CUDA} \
 # && conda clean -ya
->>>>>>> Stashed changes
 
 # requirements and apex install
 # RUN pip install -r requirements.txt

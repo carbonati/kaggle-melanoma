@@ -15,11 +15,12 @@ def cleanup_ckpts(model_dir, min_steps=4, keep_n=5):
     if len(os.listdir(model_dir)) == 0:
         shutil.rmtree(model_dir)
         return
-    if not os.path.exists(os.path.join(model_dir, 'train_history.log')):
-        return
+    #if not os.path.exists(os.path.join(model_dir, 'train_history.log')):
+    #    return
     fold_dirs = glob.glob(os.path.join(model_dir, 'fold_*'))
     if len(fold_dirs) > 0:
         for fold_dir in fold_dirs:
+            print(fold_dir)
             if os.path.exists(os.path.join(fold_dir, 'val_predictions.csv')):
                 continue
             ckpt_files = []

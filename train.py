@@ -227,15 +227,15 @@ def train(config):
                           **config['trainer'])
         trainer.fit(train_dl, config['steps'], val_dl)
 
-        # save history table to disk
-        df_hist = pd.concat((pd.DataFrame(range(1, len(trainer._history['loss'])+1), columns=['epoch']),
-                             pd.DataFrame(trainer._history)),
-                             axis=1)
-        df_hist.to_csv(os.path.join(ckpt_dir, 'history.csv'), index=False)
-
-        # generate predictions table from the best step model
-        trainer.model = model_utils.load_model(trainer.ckpt_dir, step='val_roc_auc_score')
         if config['local_rank'] == 0:
+            # save history table to disk
+            df_hist = pd.concat((pd.DataFrame(range(1, len(trainer._history['loss'])+1), columns=['epoch']),
+                                 pd.DataFrame(trainer._history)),
+                                 axis=1)
+            df_hist.to_csv(os.path.join(ckpt_dir, 'history.csv'), index=False)
+
+            # generate predictions table from the best step model
+            trainer.model = model_utils.load_model(trainer.ckpt_dir, step='val_roc_auc_score')
             num_bags = config.get('num_bags', 1)
             print(f'\nGenerating {num_bags} validation prediction(s).')
             df_pred_val = generate_df_pred(trainer,
