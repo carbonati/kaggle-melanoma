@@ -68,40 +68,40 @@ def get_criterion(method,
         return nn.CrossEntropyLoss()
 
 
-def get_augmentors(params,
+def get_augmentors(transforms=None,
                    norm_cols=None,
+                   post_norm=None,
                    tta_val=False,
                    tta_test=True,
                    train_only=None,
                    fp_16=False):
-    if params is None or len(params) == 0:
+    if transforms is None or len(transforms) == 0:
        train_aug = None
        val_aug = None
        test_aug = None
     else:
         dtype = 'float16' if fp_16 else 'float32'
-        train_aug = MelanomaAugmentor(params, norm_cols=norm_cols, dtype=dtype)
-        print(params.keys())
-        eval_params = deepcopy(params)
+        train_aug = MelanomaAugmentor(transforms, post_norm=post_norm, norm_cols=norm_cols, dtype=dtype)
+        eval_transforms = deepcopy(transforms)
         if train_only is not None:
             for p in train_only:
                 print(f'Removing `{p}` from eval augmentations.')
-                eval_params.pop(p)
-        print(eval_params.keys())
+                eval_transforms.pop(p)
 
         if tta_val:
-            val_aug = MelanomaAugmentor(eval_params, norm_cols=norm_cols, dtype=dtype)
-        elif 'normalize' in params:
-            val_aug = MelanomaAugmentor({'normalize': eval_params['normalize']},
+            val_aug = MelanomaAugmentor(eval_transforms, post_norm=post_norm, norm_cols=norm_cols, dtype=dtype)
+        elif 'normalize' in transforms:
+            val_aug = MelanomaAugmentor({'normalize': eval_transforms['normalize']},
                                         norm_cols=norm_cols,
+                                        post_norm=post_norm,
                                         dtype=dtype)
         else:
             val_aug = None
 
         if tta_test:
-            test_aug = MelanomaAugmentor(eval_params, norm_cols=norm_cols)
-        elif 'normalize' in params:
-            test_aug = MelanomaAugmentor({'normalize': eval_params['normalize']}, norm_cols=norm_cols)
+            test_aug = MelanomaAugmentor(eval_transforms, post_norm=post_norm, norm_cols=norm_cols)
+        elif 'normalize' in transforms:
+            test_aug = MelanomaAugmentor({'normalize': eval_transforms['normalize']}, post_norm=post_norm, norm_cols=norm_cols)
         else:
             test_aug = None
 

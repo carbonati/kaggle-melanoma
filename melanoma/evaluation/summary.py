@@ -33,12 +33,17 @@ def get_session_attr(config):
         'scheduler_params': [config['scheduler'].get('params')],
         'criterion': [config['criterion']['method']],
         'criterion_params': [config['criterion'].get('params', {})],
+        'transforms': [list(config['augmentations']['transforms'].keys())],
+        'tta_val': [config['augmentations']['tta_val']],
+        'tta_test': [config['augmentations']['tta_test']],
+        'train_only': [config['augmentations'].get('train_only')],
         'batch_size': [config['batch_size']],
         'class_weight': [config.get('class_weight', config['criterion'].get('sample_weight', False))],
         'norm_cols': [config['data'].get('norm_cols')],
         'max_norm': [config['trainer'].get('max_norm')],
         'fp_16': [config.get('fp_16', False)],
         'opt_leve': [config.get('opt_level', None)],
+        'num_bags': [config.get('num_bags', 1)],
         'random_state': [config['random_state']]
     }
     return attr
@@ -56,6 +61,8 @@ def compute_summary_scores(fold_dir, metrics=None, group='val'):
     filepath = os.path.join(fold_dir, f'{group}_predictions.csv')
     if os.path.exists(filepath):
         df_val = pd.read_csv(filepath)
+        if 'prediction_raw' not in df_val.columns:
+            df_val = df_val.rename(columns={'prediction': 'prediction_raw'})
         scores = train_utils.compute_scores(df_val['target'],
                                             df_val['prediction_raw'],
                                             metrics=metrics)

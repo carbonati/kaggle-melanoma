@@ -43,7 +43,8 @@ AUGMENTATION_MAP = {
     'gauss_blur': albumentations.GaussianBlur,
     'compress': albumentations.ImageCompression,
     'dropout': augmentation.CoarseDropout,
-    'one_of': albumentations.OneOf
+    'one_of': albumentations.OneOf,
+    'hair': augmentation.AdvancedHairAugmentation,
 }
 
 ARCH_TO_PRETRAINED = {

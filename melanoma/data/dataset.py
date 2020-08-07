@@ -78,9 +78,8 @@ class MelanomaDataset(Dataset):
         self.files = [fp for fps in self.image_id_to_filepaths.values() for fp in fps]
 
     def preprocess(self, img, **kwargs):
-        img = np.asarray(img) / 255
         if self.augmentor is None:
-            return img
+            return np.asarray(img) / 255
         else:
             return self.augmentor(img, **kwargs)
 
