@@ -104,6 +104,20 @@ def evaluate(config):
             norm_cols=train_config['data'].get('norm_cols'),
         )
 
+        if config.get('eval_train')
+            df_train = df_mela.loc[~df_mela['fold'].isin([fold_id, 'test', 'holdout'])].reset_index(drop=True)
+            train_ds = MelanomaDataset(os.path.join(train_config['input']['images'], 'train'),
+                                       df_train,
+                                       augmentor=val_aug,
+                                       **train_config['data'])
+            train_sampler = train_utils.get_sampler(train_ds, method='sequential')
+            train_dl = DataLoader(train_ds,
+                                  batch_size=config['batch_size'],
+                                  sampler=SequentialSampler(train_ds),
+                                  num_workers=config['num_workers'])
+        else:
+            train_dl = None
+
         if config.get('eval_val', False):
             df_val = df_mela.loc[df_mela['fold'] == fold_id].reset_index(drop=True)
             val_ds = MelanomaDataset(os.path.join(train_config['input']['images'], 'train'),
@@ -134,6 +148,16 @@ def evaluate(config):
             test_dl = None
 
         num_bags = config.get('num_bags', 1)
+        if train_dl is not None:
+            print(f'\nGenerating {num_bags} validation prediction(s).')
+            df_pred_train = generate_df_pred(trainer,
+                                             train_dl,
+                                             y_true=train_dl.dataset.get_labels(),
+                                             df_mela=df_train,
+                                             num_bags=num_bags)
+            df_pred_train.to_csv(os.path.join(output_fold_dir, 'train_predictions.csv'), index=False)
+            log_model_summary(df_pred_train, logger=trainer.logger, group='train')
+
         if val_dl is not None:
             print(f'\nGenerating {num_bags} validation prediction(s).')
             df_pred_val = generate_df_pred(trainer,
