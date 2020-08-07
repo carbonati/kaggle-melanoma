@@ -126,12 +126,8 @@ def train(config):
 
         # augmentors
         train_aug, val_aug, test_aug = train_utils.get_augmentors(
-            config['augmentations'].get('transforms'),
+            **config['augmentations'],
             norm_cols=config['data'].get('norm_cols'),
-            post_norm=config['data'].get('post_norm'),
-            tta_val=config['augmentations'].get('tta_val', False),
-            tta_test=config['augmentations'].get('tta_test', True),
-            train_only=config['augmentations'].get('train_only', None),
             fp_16=False
         )
 

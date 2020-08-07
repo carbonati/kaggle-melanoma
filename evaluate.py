@@ -40,7 +40,7 @@ def evaluate(config):
         json.dump(config, f)
 
     # log activity from the training session to a logfile
-    # sys.stdout = utils.Tee(os.path.join(model_dir, 'eval_history.log'))
+    sys.stdout = utils.Tee(os.path.join(model_dir, 'eval_history.log'))
     utils.set_state(config['random_state'])
     device_ids = config.get('device_ids', [0])
     device = torch.device(f"cuda:{device_ids[0]}" if torch.cuda.is_available() else "cpu")
@@ -100,10 +100,8 @@ def evaluate(config):
             config['augmentations']['transforms']['normalize'] = img_stats
 
         _, val_aug, test_aug = train_utils.get_augmentors(
-            config['augmentations'].get('transforms'),
+            **config['augmentations'],
             norm_cols=train_config['data'].get('norm_cols'),
-            tta_val=config['augmentations'].get('tta_val', False),
-            tta_test=config['augmentations'].get('tta_test', True),
         )
 
         if config.get('eval_val', False):
