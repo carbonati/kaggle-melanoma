@@ -5,6 +5,10 @@ __pycache__/
 *$py.class
 /data/
 /input/
+/output/
+/predictions/
+/models/
+/pretrained-models/
 
 # Distribution / packaging
 .Python

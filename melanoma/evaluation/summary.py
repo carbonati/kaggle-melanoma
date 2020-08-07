@@ -38,7 +38,7 @@ def get_session_attr(config):
         'tta_test': [config['augmentations']['tta_test']],
         'train_only': [config['augmentations'].get('train_only')],
         'batch_size': [config['batch_size']],
-        'class_weight': [config.get('class_weight', config['criterion']['params'].get('class_weight', False))],
+        'class_weight': [config.get('class_weight', config['criterion'].get('params', {}).get('class_weight'))],
         'norm_cols': [config['data'].get('norm_cols')],
         'max_norm': [config['trainer'].get('max_norm')],
         'fp_16': [config.get('fp_16', False)],

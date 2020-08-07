@@ -94,13 +94,17 @@ def evaluate(config):
                           **train_config['trainer'])
 
         # augmentors
-        if 'normalize' in config['augmentations'].get('transforms', {}):
+        if 'augmentations' in config:
+            aug_config = config['augmentations']
+        else:
+            aug_config = train_config['augmentations']
+        if 'normalize' in aug_config.get('transforms', {}):
             img_stats = data_utils.load_img_stats(os.path.join(train_config['input']['cv_folds'], img_version),
                                                   fold_id)
-            config['augmentations']['transforms']['normalize'] = img_stats
+            aug_config['transforms']['normalize'] = img_stats
 
         _, val_aug, test_aug = train_utils.get_augmentors(
-            **config['augmentations'],
+            **aug_config,
             norm_cols=train_config['data'].get('norm_cols'),
         )
 

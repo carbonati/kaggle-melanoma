@@ -71,6 +71,8 @@ def train(config):
     else:
         df_test = None
 
+
+
     # begin training session
     for fold_id in fold_ids:
         fold_id = int(fold_id) if fold_id.isdigit() else fold_id
@@ -81,8 +83,7 @@ def train(config):
         if not os.path.exists(ckpt_dir):
             os.makedirs(ckpt_dir, exist_ok=True)
 
-        df_train = df_mela.loc[(df_mela['fold'] != fold_id) &
-                                (df_mela['fold'] != 'test')].reset_index(drop=True)
+        df_train = df_mela.loc[~df_mela['fold'].isin([fold_id, 'test', 'holdout'])].reset_index(drop=True)
         df_val = df_mela.loc[df_mela['fold'] == fold_id].reset_index(drop=True)
 
         if config['distributed']:
@@ -166,7 +167,7 @@ def train(config):
                             sampler=SequentialSampler(val_ds),
                             num_workers=config['num_workers'])
 
-        if config.get('eval_eval', False):
+        if config.get('eval_val', False):
             eval_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
                                       df_val,
                                       augmentor=test_aug,
@@ -177,6 +178,23 @@ def train(config):
                                  num_workers=config['num_workers'])
         else:
             eval_dl = val_dl
+
+        if config.get('eval_holdout'):
+            df_holdout = df_mela.loc[df_mela['fold'] == 'holdout'].reset_index(drop=True)
+            if len(df_holdout) > 0:
+                holdout_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
+                                             df_holdout,
+                                             augmentor=test_aug,
+                                             **config['data'])
+                holdout_dl = DataLoader(holdout_ds,
+                                     batch_size=config.get('test_batch_size', config['batch_size']),
+                                     sampler=SequentialSampler(holdout_ds),
+                                     num_workers=config['num_workers'])
+            else:
+                holdout_dl = None
+        else:
+            df_holdout = None
+            holdout_dl = None
 
         if df_test is not None:
             # use the same augmentor as the validation set
@@ -242,13 +260,44 @@ def train(config):
             df_pred_val.to_csv(os.path.join(ckpt_dir, 'val_predictions.csv'), index=False)
             log_model_summary(df_pred_val, logger=trainer.logger, group='val')
 
+            if holdout_dl is not None:
+                group = 'holdout'
+                print(f'\nGenerating {num_bags} `{group}` prediction(s).')
+                df_pred_holdout = generate_df_pred(trainer,
+                                                   holdout_dl,
+                                                   y_true=holdout_dl.dataset.get_labels(),
+                                                   df_mela=df_holdout,
+                                                   num_bags=num_bags)
+                df_pred_holdout.to_csv(os.path.join(ckpt_dir, f'{group}_predictions.csv'), index=False)
+                log_model_summary(df_pred_holdout, logger=trainer.logger, group=group)
+
+            if config.get('eval_train'):
+                group = 'train'
+                print(f'\nGenerating {num_bags} `{group}` prediction(s).')
+                train_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
+                                           df_train,
+                                           augmentor=test_aug,
+                                           **config['data'])
+                train_dl = DataLoader(train_ds,
+                                      batch_size=config.get('test_batch_size', config['val_batch_size']),
+                                      sampler=train_utils.get_sampler(train_ds, method='sequential'),
+                                      num_workers=config['num_workers'])
+                df_pred_train = generate_df_pred(trainer,
+                                                 train_dl,
+                                                 y_true=train_dl.dataset.get_labels(),
+                                                 df_mela=df_holdout,
+                                                 num_bags=num_bags)
+                df_pred_train.to_csv(os.path.join(ckpt_dir, f'{group}_predictions.csv'), index=False)
+                log_model_summary(df_pred_train, logger=trainer.logger, group=group)
+
             if test_dl is not None:
-                print(f'\nGenerating {num_bags} test prediction(s).')
+                group = 'test'
+                print(f'\nGenerating {num_bags} `{group}` prediction(s).')
                 df_pred_test = generate_df_pred(trainer,
                                                 test_dl,
                                                 df_mela=df_test,
                                                 num_bags=num_bags)
-                df_pred_test.to_csv(os.path.join(ckpt_dir, 'test_predictions.csv'), index=False)
+                df_pred_test.to_csv(os.path.join(ckpt_dir, f'{group}_predictions.csv'), index=False)
 
             print(f'Saved output to {ckpt_dir}')
 
