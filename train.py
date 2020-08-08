@@ -57,8 +57,6 @@ def train(config):
                                    image_map=config['input']['image_map'],
                                    keep_prob=config.get('keep_prob', 1.),
                                    random_state=config['random_state'])
-    df_mela['image_dir'] = df_mela['image_dir'].apply(lambda x: os.path.join(x, 'train'))
-
     fold_ids = config.get('fold_ids', list(set(df_mela['fold'].tolist())))
     fold_ids = fold_ids if isinstance(fold_ids, list) else [fold_ids]
 
@@ -67,7 +65,6 @@ def train(config):
                                        image_map=config['input']['image_map'],
                                        keep_prob=config.get('keep_prob', 1.),
                                        random_state=config['random_state'])
-        df_test['image_dir'] = df_test['image_dir'].apply(lambda x: os.path.join(x, 'test'))
     else:
         df_test = None
 
@@ -132,14 +129,14 @@ def train(config):
             fp_16=False
         )
 
-        train_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
-                                   df_train,
+        train_ds = MelanomaDataset(df_train,
+                                   image_dir='train',
                                    augmentor=train_aug,
                                    fp_16=False,
                                    #fp_16=config.get('fp_16'),
                                    **config['data'])
-        val_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
-                                 df_val,
+        val_ds = MelanomaDataset(df_val,
+                                 image_dir='train',
                                  augmentor=val_aug,
                                  fp_16=False,
                                  **config['data'])
@@ -182,8 +179,8 @@ def train(config):
         if config.get('eval_holdout'):
             df_holdout = df_mela.loc[df_mela['fold'] == 'holdout'].reset_index(drop=True)
             if len(df_holdout) > 0:
-                holdout_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
-                                             df_holdout,
+                holdout_ds = MelanomaDataset(df_holdout,
+                                             image_dir='train',
                                              augmentor=test_aug,
                                              **config['data'])
                 holdout_dl = DataLoader(holdout_ds,
@@ -198,8 +195,8 @@ def train(config):
 
         if df_test is not None:
             # use the same augmentor as the validation set
-            test_ds = MelanomaDataset(os.path.join(config['input']['images'], 'test'),
-                                      df_test,
+            test_ds = MelanomaDataset(df_test,
+                                      image_dir='test',
                                       target_col=None,
                                       augmentor=test_aug,
                                       **config['data'])
@@ -274,8 +271,8 @@ def train(config):
             if config.get('eval_train'):
                 group = 'train'
                 print(f'\nGenerating {num_bags} `{group}` prediction(s).')
-                train_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
-                                           df_train,
+                train_ds = MelanomaDataset(df_train,
+                                           image_dir='train',
                                            augmentor=test_aug,
                                            **config['data'])
                 train_dl = DataLoader(train_ds,

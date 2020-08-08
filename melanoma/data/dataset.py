@@ -12,16 +12,16 @@ from utils import data_utils
 class MelanomaDataset(Dataset):
     """Melanoma dataset."""
     def __init__(self,
-                 root,
                  df,
+                 image_dir='',
                  target_col='target',
                  img_format='jpg',
                  augmentor=None,
                  norm_cols=None,
                  fp_16=False,
                  seed=None):
-        self.root = root
         self.df = df
+        self.image_dir = image_dir
         self.augmentor = augmentor
         self.target_col = target_col
         self.img_format = img_format
@@ -50,7 +50,9 @@ class MelanomaDataset(Dataset):
 
     def __getitem__(self, index):
         df_index = self.df.iloc[index]
-        img = data_utils.load_image(df_index['image_dir'], self.image_ids[index], self.img_format)
+        img = data_utils.load_image(os.path.join(df_index['image_dir'], self.image_dir),
+                                    self.image_ids[index],
+                                    self.img_format)
 
         stratify_list = []
         if self.norm_cols is not None:
@@ -72,7 +74,7 @@ class MelanomaDataset(Dataset):
     def _set_image_id_to_filepaths(self):
         self.image_id_to_filepath = defaultdict(list)
         for image_id in self.image_ids:
-            self.image_id_to_filepath[image_id] = os.path.join(self.root, f'{image_id}.{self.img_format}')
+            self.image_id_to_filepath[image_id] = os.path.join(self.image_dir, f'{image_id}.{self.img_format}')
 
     def _set_files(self):
         self.files = [fp for fps in self.image_id_to_filepaths.values() for fp in fps]

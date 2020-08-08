@@ -49,9 +49,10 @@ def evaluate(config):
     df_mela = data_utils.load_data(train_config['input']['train'],
                                    duplicate_path=train_config['input']['duplicates'],
                                    cv_folds_dir=train_config['input']['cv_folds'],
+                                   external_filepaths=train_config['input'].get('external_filepaths'),
+                                   image_map=train_config['input'].get('image_map'),
                                    keep_prob=config.get('keep_prob', 1.),
                                    random_state=config['random_state'])
-
 
     fold_ids = config.get(
         'fold_ids',
@@ -65,6 +66,11 @@ def evaluate(config):
                                        random_state=config['random_state'])
     else:
         df_test = None
+
+    if config.get('eval_holdout'):
+        df_holdout = df_mela.loc[df_mela['fold'] == 'holdout'].reset_index(drop=True)
+    else:
+        df_holdout = None
 
     # begin training session
     for fold_id in fold_ids:
@@ -85,7 +91,7 @@ def evaluate(config):
         num_workers = config['num_workers']
 
         # instantiate model
-        model = model_utils.load_model(ckpt_dir, step=config.get('step', 'best_val_auc'))
+        model = model_utils.load_model(ckpt_dir, step=config.get('step', 'val_roc_auc_score'))
         model = model.cuda()
         model = nn.DataParallel(model, device_ids).to(device)
 
@@ -108,10 +114,10 @@ def evaluate(config):
             norm_cols=train_config['data'].get('norm_cols'),
         )
 
-        if config.get('eval_train')
+        if config.get('eval_train'):
             df_train = df_mela.loc[~df_mela['fold'].isin([fold_id, 'test', 'holdout'])].reset_index(drop=True)
-            train_ds = MelanomaDataset(os.path.join(train_config['input']['images'], 'train'),
-                                       df_train,
+            train_ds = MelanomaDataset(df_train,
+                                       image_dir='train',
                                        augmentor=val_aug,
                                        **train_config['data'])
             train_sampler = train_utils.get_sampler(train_ds, method='sequential')
@@ -124,8 +130,8 @@ def evaluate(config):
 
         if config.get('eval_val', False):
             df_val = df_mela.loc[df_mela['fold'] == fold_id].reset_index(drop=True)
-            val_ds = MelanomaDataset(os.path.join(train_config['input']['images'], 'train'),
-                                     df_val,
+            val_ds = MelanomaDataset(df_val,
+                                     image_dir='val',
                                      augmentor=val_aug,
                                      **train_config['data'])
             val_sampler = train_utils.get_sampler(val_ds, method='sequential',)
@@ -138,8 +144,8 @@ def evaluate(config):
 
         if df_test is not None:
             # use the same augmentor as the validation set
-            test_ds = MelanomaDataset(os.path.join(train_config['input']['images'], 'test'),
-                                      df_test,
+            test_ds = MelanomaDataset(df_test,
+                                      image_dir='test',
                                       target_col=None,
                                       augmentor=test_aug,
                                       **train_config['data'])
@@ -153,14 +159,15 @@ def evaluate(config):
 
         num_bags = config.get('num_bags', 1)
         if train_dl is not None:
-            print(f'\nGenerating {num_bags} validation prediction(s).')
+            group = 'train'
+            print(f'\nGenerating {num_bags} `{group}` prediction(s).')
             df_pred_train = generate_df_pred(trainer,
                                              train_dl,
                                              y_true=train_dl.dataset.get_labels(),
                                              df_mela=df_train,
                                              num_bags=num_bags)
             df_pred_train.to_csv(os.path.join(output_fold_dir, 'train_predictions.csv'), index=False)
-            log_model_summary(df_pred_train, logger=trainer.logger, group='train')
+            log_model_summary(df_pred_train, logger=trainer.logger, group=group)
 
         if val_dl is not None:
             print(f'\nGenerating {num_bags} validation prediction(s).')
@@ -182,7 +189,7 @@ def evaluate(config):
             df_pred_test.to_csv(os.path.join(output_fold_dir, 'test_predictions.csv'),
                                 index=False)
 
-        print(f'Saved predictions to {output_fold_dir}')
+        print(f'\n\nSaved predictions to {output_fold_dir}')
 
 
 if __name__ == '__main__':
