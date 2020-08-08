@@ -4,6 +4,7 @@ import glob
 import datetime
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from utils import data_utils, model_utils, train_utils
 from evaluation.metrics import compute_auc
@@ -17,7 +18,8 @@ METRICS = [
     'average_precision_score',
     'specificity_score',
     'fpr_score',
-    'pos_rate'
+    'pos_rate',
+    'log_loss',
 ]
 
 def get_session_attr(config):
@@ -67,16 +69,16 @@ def compute_summary_scores(fold_dir, metrics=None, group='val'):
                                             df_val['prediction_raw'],
                                             metrics=metrics)
         df_scores = pd.DataFrame([list(scores.values())], columns=scores.keys())
-        df_scores.columns = [f'val_{c}' for c in df_scores.columns]
+        df_scores.columns = [f'{group}_{c}' for c in df_scores.columns]
     else:
         df_scores = pd.DataFrame([[None] * len(metrics)],
-                                 columns=[f'val_{c}' for c in metrics])
+                                 columns=[f'{group}_{c}' for c in metrics])
     return df_scores
 
 
 def generate_df_scores(exp_dirs, df_panda=None):
     df_scores = None
-    for exp_dir in exp_dirs:
+    for exp_dir in tqdm(exp_dirs):
         for root, dirs, files in os.walk(exp_dir):
             for model_name in dirs:
                 fold_dirs = glob.glob(os.path.join(root, model_name, 'fold_*'))
@@ -124,7 +126,9 @@ def generate_df_scores(exp_dirs, df_panda=None):
                         df_best = pd.concat((df_best,
                                              pd.DataFrame(get_session_attr(config))), axis=1)
                         df_val_scores = compute_summary_scores(fold_dir, group='val')
-                        df_best = pd.concat((df_best, df_val_scores), axis=1)
+                        df_train_scores = compute_summary_scores(fold_dir, group='train')
+                        df_holdout_scores = compute_summary_scores(fold_dir, group='holdout')
+                        df_best = pd.concat((df_best, df_val_scores, df_train_scores, df_holdout_scores), axis=1)
                         df_scores = pd.concat((df_scores, df_best), ignore_index=True)
 
     df_scores['dt'] = df_scores['model_name'].apply(get_ckpt_dt)
