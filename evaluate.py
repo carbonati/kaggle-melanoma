@@ -109,6 +109,12 @@ def evaluate(config):
                                                   fold_id)
             aug_config['transforms']['normalize'] = img_stats
 
+        # hotfix
+        aug_config['train_only'] = [x for x in aug_config['transforms'].keys() if x not in ['normalize', 'vertical', 'horizontal', 'transpose']]
+        if config.get('tta') == True:
+            print('Setting `tta_test` to true')
+            aug_config['tta_val'] = True
+            aug_config['tta_test'] = True
         _, val_aug, test_aug = train_utils.get_augmentors(
             **aug_config,
             norm_cols=train_config['data'].get('norm_cols'),
@@ -131,9 +137,22 @@ def evaluate(config):
         if config.get('eval_val', False):
             df_val = df_mela.loc[df_mela['fold'] == fold_id].reset_index(drop=True)
             val_ds = MelanomaDataset(df_val,
-                                     image_dir='val',
+                                     image_dir='train',
                                      augmentor=val_aug,
                                      **train_config['data'])
+            val_sampler = train_utils.get_sampler(val_ds, method='sequential',)
+            val_dl = DataLoader(val_ds,
+                                batch_size=config['batch_size'],
+                                sampler=SequentialSampler(val_ds),
+                                num_workers=config['num_workers'])
+        else:
+            val_dl = None
+
+        df_holdout is not None:
+            holdout_ds = MelanomaDataset(df_holdout
+                                         image_dir='train',
+                                         augmentor=test_aug,
+                                         **train_config['data'])
             val_sampler = train_utils.get_sampler(val_ds, method='sequential',)
             val_dl = DataLoader(val_ds,
                                 batch_size=config['batch_size'],
@@ -175,7 +194,7 @@ def evaluate(config):
                                            val_dl,
                                            y_true=val_dl.dataset.get_labels(),
                                            df_mela=df_val,
-                                       num_bags=num_bags)
+                                           num_bags=num_bags)
             df_pred_val.to_csv(os.path.join(output_fold_dir, 'val_predictions.csv'),
                                index=False)
             log_model_summary(df_pred_val, logger=trainer.logger, group='val')
@@ -204,6 +223,7 @@ if __name__ == '__main__':
     parser.add_argument('--keep_prob', '-p', default=None, type=float)
     parser.add_argument('--batch_size', '-bs', default=None, type=int)
     parser.add_argument('--experiment_name', '-e', default=None, type=str)
+    parser.add_argument('--model', '-m', default=None, type=str)
     parser.add_argument('--num_workers', '-w', default=None, type=int)
     parser.add_argument('--fold_ids', default=None, type=list)
     parser.add_argument('--num_gpus', default=1, type=int)

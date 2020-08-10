@@ -28,7 +28,7 @@ def get_session_attr(config):
         'backbone': [config['model']['backbone']],
         'sampler': [config['sampler']['method']],
         'optim': [config['optimizer'].get('method')],
-        'lr': [config['optimizer']['params']['lr']],
+        'initial_lr': [config['optimizer']['params']['lr']],
         'pool': [config['model']['pool_params']],
         'output_net': [config['model'].get('output_net_params')],
         'scheduler': [config['scheduler'].get('method')],
@@ -43,8 +43,9 @@ def get_session_attr(config):
         'class_weight': [config.get('class_weight', config['criterion'].get('params', {}).get('class_weight'))],
         'norm_cols': [config['data'].get('norm_cols')],
         'max_norm': [config['trainer'].get('max_norm')],
+        'distributed': [config.get('distributed', False)],
         'fp_16': [config.get('fp_16', False)],
-        'opt_leve': [config.get('opt_level', None)],
+        'opt_level': [config.get('opt_level', None)],
         'num_bags': [config.get('num_bags', 1)],
         'random_state': [config['random_state']]
     }

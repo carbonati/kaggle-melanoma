@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import cv2
 import pickle
+import torch
 from sklearn.preprocessing import KBinsDiscretizer
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
@@ -234,3 +235,57 @@ def load_img_stats(root, fold_id, filename='img_stats.json'):
     with open(filepath, 'rb') as f:
         img_stats = eval(json.load(f))
     return img_stats
+
+
+def rand_bbox(shape, lam):
+    batch_size, d, h, w = shape
+    cut_rat = np.sqrt(1. - lam)
+    cut_w = np.int(w * cut_rat)
+    cut_h = np.int(h * cut_rat)
+
+    # uniform
+    cx = np.random.randint(w)
+    cy = np.random.randint(h)
+
+    bbx1 = np.clip(cx - cut_w // 2, 0, w)
+    bby1 = np.clip(cy - cut_h // 2, 0, h)
+    bbx2 = np.clip(cx + cut_w // 2, 0, w)
+    bby2 = np.clip(cy + cut_h // 2, 0, h)
+
+    return bbx1, bby1, bbx2, bby2
+
+
+def cutmix_data(x, y, beta=1., use_cuda=True):
+    """CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features
+    (https://arxiv.org/pdf/1905.04899.pdf).
+    """
+    if beta > 0:
+        lam = np.random.beta(beta, beta)
+    else:
+        lam = 1
+
+    shape = x.size()
+    indices = torch.randperm(shape[0])
+    if use_cuda:
+        indices = indices.cuda()
+
+    bbx1, bby1, bbx2, bby2 = rand_bbox(shape, lam)
+    x[:, :, bbx1:bbx2, bby1:bby2] = x[indices, :, bbx1:bbx2, bby1:bby2]
+    y_cut = y[indices]
+    return x, y, y_cut, lam
+
+
+def mixup_data(x, y, alpha=1.0, use_cuda=True):
+    """mixup: Beyond Empirical Risk Minimization (https://arxiv.org/pdf/1710.09412.pdf)"""
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1
+
+    indices = torch.randperm(x.size()[0])
+    if use_cuda:
+        indices = indices.cuda()
+
+    x_mixed = lam * x + (1 - lam) * x[indices, :]
+    y_mixed = y[indices]
+    return x_mixed, y, y_mixed, lam

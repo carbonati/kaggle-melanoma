@@ -80,7 +80,12 @@ def prepare_config(config, args):
             v = v if v != 0 else None
         if v is not None:
             print(f'Updating parameter `{arg}` to {v}')
-            config[arg] = v
+            # hotfix
+            if arg == 'model':
+                config['input']['model'] = v
+            else:
+                config[arg] = v
+    config['distributed'] = config.get('distributed', False)
     return config
 
 

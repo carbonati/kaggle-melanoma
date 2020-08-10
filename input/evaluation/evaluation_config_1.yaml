@@ -1,30 +1,18 @@
 input:
-  train: /root/workspace/kaggle-melanoma/data/train.csv
-  test: /root/workspace/kaggle-melanoma/data/test.csv
-  model: /root/workspace/kaggle-melanoma/models/misc_exp_1/efficientnet-b0_bce_224_64_concat_adam_one_cycle_20200731_1458
+  {}
+  # model: /root/workspace/kaggle-melanoma/models/misc_exp_1/efficientnet-b0_bce_224_64_concat_adam_one_cycle_20200731_1458
 
 output:
   predictions: /root/workspace/kaggle-melanoma/predictions
 
-augmentations:
-  tta_val: true
-  tta_test: true
-  transforms:
-    normalize:
-      mean: null
-      std: null
-    transpose:
-      p: 0.5
-    vertical:
-      p: 0.5
-    horizontal:
-      p: 0.5
-
-best_step: val_auc_score
+step: val_roc_auc_score
 eval_val: true
+eval_train: true
+eval_holdout: true
 eval_test: true
-num_bags: 5
-batch_size: 64
+tta: false
+num_bags: 1
+batch_size: 256
 keep_prob: 1
 num_workers: 8
 random_state: 42069

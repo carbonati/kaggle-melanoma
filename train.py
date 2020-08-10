@@ -167,7 +167,7 @@ def train(config):
 
         if config.get('eval_val', False):
             eval_ds = MelanomaDataset(df_val,
-                                      'train',
+                                      image_dir='train',
                                       augmentor=test_aug,
                                       **config['data'])
             eval_dl = DataLoader(eval_ds,

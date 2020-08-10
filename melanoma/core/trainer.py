@@ -14,12 +14,12 @@ except:
 from sklearn.metrics import roc_auc_score, log_loss
 from utils.generic_utils import Logger
 from utils.model_utils import load_model
-from utils.train_utils import compute_scores
+from utils import data_utils, train_utils
 from evaluation.metrics import compute_auc
 
 
 class Trainer:
-    """Panda trainer."""
+    """Melanoma trainer."""
 
     def __init__(self,
                  model,
@@ -31,6 +31,7 @@ class Trainer:
                  postprocessor=None,
                  max_norm=None,
                  ckpt_dir=None,
+                 reg_params=None,
                  monitor=None,
                  fp_16=False,
                  rank=0,
@@ -40,9 +41,10 @@ class Trainer:
         self.criterion = criterion
         self.scheduler = scheduler
         self.postprocessor = postprocessor
+        self.ckpt_dir = ckpt_dir
         self._metrics = metrics
         self._task = task
-        self.ckpt_dir = ckpt_dir
+        self.reg_params = reg_params
         self._monitor = monitor
         self._rank = rank
         self._max_norm = max_norm
@@ -57,6 +59,12 @@ class Trainer:
         self._new_best = False
         self._history = None
         self.logger = None
+        if self.reg_params is None:
+            self._apply_mixup = None
+            self._apply_cutmix = None
+        else:
+            self._apply_mixup = 'mixup' in self.reg_params
+            self._apply_cutmix = 'cutmix' in self.reg_params
 
         if self.logger is None:
             self.logger = sys.stdout
@@ -196,7 +204,7 @@ class Trainer:
                     str_format += f' - val_loss : {val_loss:.4f}'
                     self._history['val_loss'].append(val_loss)
 
-                    val_scores = compute_scores(y_val, y_pred, self._metrics)
+                    val_scores = train_utils.compute_scores(y_val, y_pred, self._metrics)
                     for k, v in val_scores.items():
                         str_format += f' - val_{k} : {v:.4f}'
                         self._history[f'val_{k}'].append(v)
@@ -250,9 +258,12 @@ class Trainer:
             self._save_history()
         self._set_eval_mode()
 
-    def train_on_batch(self, x, y):
+    def train_on_batch(self, x, y, y_b=None, lam=None):
         y_pred = self.model(x)
-        loss = self.criterion(y_pred, y)
+        if y_b is not None:
+            loss = train_utils.regularized_criterion(self.criterion, y_pred, y, y_b, lam=lam)
+        else:
+            loss = self.criterion(y_pred, y)
 
         self.optim.zero_grad()
         if self._fp_16:
@@ -302,7 +313,26 @@ class Trainer:
                 x = x.cuda(self.device)
                 y = y.cuda(self.device)
 
-            y_pred, loss = self.train_on_batch(x, y)
+            if self._apply_mixup and self.reg_params['mixup'].get('warmup', 0) < self.global_step:
+                x_mixed, y, y_mixed, lam = data_utils.mixup_data(
+                    x,
+                    y,
+                    alpha=self.reg_params['mixup']['alpha'],
+                    use_cuda=self._is_cuda
+                )
+                y_pred, loss = self.train_on_batch(x_mixed, y, y_b=y_mixed, lam=lam)
+            elif self._apply_cutmix and self.reg_params['cutmix'].get('warmup', 0) < self.global_step:
+                x_cut, y, y_cut, lam = data_utils.cutmix_data(
+                    x,
+                    y,
+                    beta=self.reg_params['cutmix']['beta'],
+                    use_cuda=self._is_cuda
+                )
+                y_pred, loss = self.train_on_batch(x_cut, y, y_b=y_cut, lam=lam)
+            else:
+                y_pred, loss = self.train_on_batch(x, y)
+
+            # do we keep auc??? maybe set this to None when cutmix/up is applied
             score = compute_auc(y.data.cpu(), y_pred)
             if score is not None:
                 train_score_sum += score
@@ -366,7 +396,6 @@ class Trainer:
     def save_model(self):
         if self.ckpt_dir is not None:
             self._save_model()
-
 
 class BlendTrainer(Trainer):
     """Blender."""

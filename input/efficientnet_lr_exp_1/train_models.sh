@@ -1,7 +1,7 @@
 steps=40
 keep_prob=1
 batch_size=64
-experiment_name="lr_exp_1"
+experiment_name="efficientnet_lr_exp_1"
 sleep_sec=20
 num_gpus=1
 

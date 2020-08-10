@@ -46,7 +46,7 @@ model:
     bn:
       eps: 0.001
       momentum: 0.01
-    dropout: 0.03
+    dropout: 0.3
   num_classes: 1
 
 trainer:
@@ -68,3 +68,5 @@ num_bags: 1
 num_workers: 8
 distributed: false
 random_state: 42069
+tags:
+  - sw_3

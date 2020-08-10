@@ -197,3 +197,7 @@ def compute_scores(y_true, y_pred, metrics, logits=True, th=''):
         scores[name] = score
 
     return scores
+
+
+def regularized_criterion(criterion, y_pred, y, y_b, lam):
+    return lam * criterion(y_pred, y) + (1 - lam) * criterion(y_pred, y_b)
