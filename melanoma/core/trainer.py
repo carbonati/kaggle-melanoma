@@ -33,6 +33,7 @@ class Trainer:
                  ckpt_dir=None,
                  reg_params=None,
                  monitor=None,
+                 distributed=False,
                  fp_16=False,
                  rank=0,
                  **kwargs):
@@ -48,6 +49,7 @@ class Trainer:
         self._monitor = monitor
         self._rank = rank
         self._max_norm = max_norm
+        self._distributed = distributed
         self._fp_16 = fp_16
         self._is_cuda = next(self.model.parameters()).is_cuda
 
@@ -95,7 +97,7 @@ class Trainer:
 
     @property
     def global_step(self):
-        self._global_step
+        return self._global_step
 
     @global_step.setter
     def global_step(self, step):
@@ -185,6 +187,8 @@ class Trainer:
 
         for step in range(steps):
             self._global_step += 1
+            if self._distributed:
+                train_dl.sampler.set_epoch(self._global_step)
             self.train(train_dl)
 
             str_format = f"step {self._global_step} ({self._history['elapsed_time'][-1]}s) - loss : {self._history['loss'][-1]:.4f}"
