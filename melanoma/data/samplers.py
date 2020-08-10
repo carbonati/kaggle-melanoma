@@ -173,7 +173,8 @@ class DistributedSampler(Sampler):
 
     def __iter__(self):
         return iter(
-            [e for i, e in enumerate(self.iterable) if (i - self.rank) % self.num_replicas == 0])
+            [e for i, e in enumerate(self.iterable) if (i // self.batch_size) % self.num_replicas == self.rank]
+        )
 
     def __len__(self):
         return len(self.iterable)
