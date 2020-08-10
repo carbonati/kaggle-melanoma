@@ -156,8 +156,8 @@ def get_sampler(ds,
 
     # df = sampler.data_source.df
     if distributed:
-        sampler = DistributedSamplerWrapper(sampler, batch_size, num_replicas=num_replicas, rank=rank)
-        # sampler = DistributedSampler(sampler)
+        # sampler = DistributedSamplerWrapper(sampler, batch_size, num_replicas=num_replicas, rank=rank)
+        sampler = DistributedSampler(sampler)
     #indices = []
     #for idx in sampler:
     #    indices.append(idx)

@@ -42,6 +42,7 @@ def get_session_attr(config):
         'batch_size': [config['batch_size']],
         'class_weight': [config.get('class_weight', config['criterion'].get('params', {}).get('class_weight'))],
         'norm_cols': [config['data'].get('norm_cols')],
+        'reg_params': [config['trainer'].get('reg_params')],
         'max_norm': [config['trainer'].get('max_norm')],
         'distributed': [config.get('distributed', False)],
         'fp_16': [config.get('fp_16', False)],

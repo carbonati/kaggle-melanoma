@@ -234,6 +234,7 @@ def train(config):
                           scheduler=sched,
                           ckpt_dir=ckpt_dir,
                           device_ids=device_ids,
+                          distributed=config['distributed'],
                           fp_16=config.get('fp_16', False),
                           rank=config.get('local_rank', 0),
                           **config['trainer'])
@@ -322,6 +323,7 @@ if __name__ == '__main__':
 
     config = utils.load_config_from_yaml(args.config_filepath)
     config = utils.prepare_config(config, args)
+    config['model']['pool_params']['method'] = 'max'
 
     train(config)
 
