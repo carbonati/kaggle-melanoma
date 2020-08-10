@@ -7,12 +7,12 @@ import tqdm
 import torch
 from copy import deepcopy
 from sklearn import metrics as sk_metrics
-from torch.utils.data import DataLoader, RandomSampler
+from torch.utils.data import DataLoader, RandomSampler, BatchSampler
 
 import config as melanoma_config
 from data.dataset import MelanomaDataset
 from data.augmentation import MelanomaAugmentor
-from data.samplers import BatchStratifiedSampler, DistributedSamplerWrapper
+from data.samplers import BatchStratifiedSampler, DistributedSamplerWrapper, DistributedBatchSampler
 from utils import model_utils
 from evaluation import metrics as eval_metrics
 
@@ -132,6 +132,8 @@ def get_sampler(ds,
                 params=None,
                 distributed=False,
                 batch_size=None,
+                rank=None,
+                num_replicas=None,
                 random_state=None):
     if method is not None:
         params = params or {}
@@ -151,8 +153,13 @@ def get_sampler(ds,
     else:
         sampler = None
 
+    # df = sampler.data_source.df
     if distributed:
-        sampler = DistributedSamplerWrapper(sampler)
+        sampler = DistributedSamplerWrapper(sampler, batch_size, num_replicas=num_replicas, rank=rank)
+    #indices = []
+    #for idx in sampler:
+    #    indices.append(idx)
+    #print(indices[:100])
     return sampler
 
 

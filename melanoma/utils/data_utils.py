@@ -191,7 +191,7 @@ def stratify_batches(indices,
                      drop_last=False,
                      random_state=None):
     """Returns a list of indices stratified by `labels` where each stratification is
-    of size `bathc_size`
+    of size `batch_size`
     """
     strat_indices = []
 
@@ -218,12 +218,14 @@ def stratify_batches(indices,
                           random_state=random_state)
 
     for _, batch_idx in skf.split(remainder_indices, remainder_labels):
-        strat_indices.extend([remainder_indices[idx] for idx in batch_idx])
+        strat_indices.append([remainder_indices[idx] for idx in batch_idx])
+        # strat_indices.extend([remainder_indices[idx] for idx in batch_idx])
 
+    strat_indices = [strat_indices[i] for i in np.random.choice(range(len(strat_indices)), len(strat_indices))]
     if not drop_last:
-        strat_indices.extend(last_idx)
+        strat_indices.append(last_idx)
 
-    return strat_indices
+    return [i for indices in strat_indices for i in indices]
 
 
 def load_img_stats(root, fold_id, filename='img_stats.json'):

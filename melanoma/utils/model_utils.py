@@ -70,6 +70,7 @@ def load_model(ckpt_dir,
                step=None,
                filename=None,
                device='cuda',
+               device_ids=None,
                **kwargs):
     """Loads pretrained model from disk."""
     config = load_config(ckpt_dir)
@@ -80,8 +81,12 @@ def load_model(ckpt_dir,
         state_dict = load_best_state_dict(ckpt_dir, step=step, device=device)
     else:
         state_dict = load_state_dict(ckpt_dir, filename=filename, device=device)
-    model = get_model(**model_params).to(device)
+    model = get_model(**model_params)
     model.load_state_dict(state_dict)
+    if device_ids is not None:
+        model = nn.DataParallel(model)
+        # model = nn.DataParallel(model, device_ids).to(device)
+    model.to(device)
     model.eval()
     return model
 

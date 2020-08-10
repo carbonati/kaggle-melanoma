@@ -142,35 +142,36 @@ def train(config):
                                  **config['data'])
                               #fp_16=config.get('fp_16'),
 
-        config['val_batch_size'] = config.get('val_batch_size', config['batch_size'])
         train_sampler = train_utils.get_sampler(train_ds,
                                                 distributed=config['distributed'],
-                                                batch_size=config['batch_size'] * config['num_gpus'],
+                                                batch_size=config['batch_size'] ,#* config['num_gpus'],
                                                 # random_state=config['random_state'],
+                                                rank=config['local_rank'],
+                                                num_replicas=config['num_gpus'],
                                                 method=config['sampler']['method'],
                                                 params=config['sampler'].get('params', {}))
-        print(train_sampler)
         val_sampler = train_utils.get_sampler(val_ds,
                                               method='sequential',)
                                               #distributed=config['distributed'])
 
+        config['eval_batch_size'] = config.get('eval_batch_size', config['batch_size'])
         train_dl = DataLoader(train_ds,
                               batch_size=config['batch_size'],
                               sampler=train_sampler,
                               num_workers=num_workers,
                               drop_last=True)
         val_dl = DataLoader(val_ds,
-                            batch_size=config.get('val_batch_size', config['batch_size']),
+                            batch_size=config['eval_batch_size'] * config['num_gpus'],
                             sampler=SequentialSampler(val_ds),
                             num_workers=config['num_workers'])
 
         if config.get('eval_val', False):
-            eval_ds = MelanomaDataset(os.path.join(config['input']['images'], 'train'),
-                                      df_val,
+            eval_ds = MelanomaDataset(df_val,
+                                      'train',
                                       augmentor=test_aug,
                                       **config['data'])
             eval_dl = DataLoader(eval_ds,
-                                 batch_size=config.get('test_batch_size', config['batch_size']),
+                                 batch_size=config['eval_batch_size'] * config['num_gpus'],
                                  sampler=SequentialSampler(eval_ds),
                                  num_workers=config['num_workers'])
         else:
@@ -184,7 +185,7 @@ def train(config):
                                              augmentor=test_aug,
                                              **config['data'])
                 holdout_dl = DataLoader(holdout_ds,
-                                     batch_size=config.get('test_batch_size', config['batch_size']),
+                                     batch_size=config['eval_batch_size'] * config['num_gpus'],
                                      sampler=SequentialSampler(holdout_ds),
                                      num_workers=config['num_workers'])
             else:
@@ -202,7 +203,7 @@ def train(config):
                                       **config['data'])
             test_sampler = train_utils.get_sampler(test_ds, method='sequential')
             test_dl = DataLoader(test_ds,
-                                 batch_size=config.get('test_batch_size', config['val_batch_size']),
+                                 batch_size=config['eval_batch_size'] * config['num_gpus'],
                                  sampler=test_sampler,
                                  num_workers=config['num_workers'])
         else:
@@ -238,6 +239,7 @@ def train(config):
                           **config['trainer'])
         trainer.fit(train_dl, config['steps'], val_dl)
 
+        num_bags = config.get('num_bags', 1)
         if config['local_rank'] == 0:
             # save history table to disk
             df_hist = pd.concat((pd.DataFrame(range(1, len(trainer._history['loss'])+1), columns=['epoch']),
@@ -246,8 +248,9 @@ def train(config):
             df_hist.to_csv(os.path.join(ckpt_dir, 'history.csv'), index=False)
 
             # generate predictions table from the best step model
-            trainer.model = model_utils.load_model(trainer.ckpt_dir, step='val_roc_auc_score')
-            num_bags = config.get('num_bags', 1)
+            trainer.model = model_utils.load_model(trainer.ckpt_dir,
+                                                    step='val_roc_auc_score',
+                                                    device_ids=list(range(config['num_gpus'])))
             print(f'\nGenerating {num_bags} validation prediction(s).')
             df_pred_val = generate_df_pred(trainer,
                                            eval_dl,
@@ -276,7 +279,7 @@ def train(config):
                                            augmentor=test_aug,
                                            **config['data'])
                 train_dl = DataLoader(train_ds,
-                                      batch_size=config.get('test_batch_size', config['val_batch_size']),
+                                      batch_size=config['eval_batch_size'] * config['num_gpus'],
                                       sampler=train_utils.get_sampler(train_ds, method='sequential'),
                                       num_workers=config['num_workers'])
                 df_pred_train = generate_df_pred(trainer,

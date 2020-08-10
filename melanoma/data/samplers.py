@@ -4,6 +4,7 @@ from operator import itemgetter
 from torch.utils.data import Sampler, Dataset, BatchSampler, DistributedSampler
 from utils import data_utils
 
+
 class BatchStratifiedSampler(Sampler):
     """Stratified batch sampler."""
     def __init__(self,
@@ -49,19 +50,19 @@ class DatasetFromSampler(Dataset):
         return len(self.sampler)
 
 
-class DistributedSamplerWrapper(DistributedSampler):
-    """https://github.com/catalyst-team/catalyst/blob/master/catalyst/data/sampler.py"""
-    def __init__(self, sampler, **kwargs):
-        super(DistributedSamplerWrapper, self).__init__(DatasetFromSampler(sampler),
-                                                        **kwargs)
-        self.sampler = sampler
-
-    def __iter__(self):
-        self.dataset = DatasetFromSampler(self.sampler)
-        indexes_of_indexes = super().__iter__()
-        return iter(itemgetter(*indexes_of_indexes)(self.dataset))
-
-
+#class DistributedSamplerWrapper(DistributedSampler):
+#    """https://github.com/catalyst-team/catalyst/blob/master/catalyst/data/sampler.py"""
+#    def __init__(self, sampler, **kwargs):
+#        super(DistributedSamplerWrapper, self).__init__(DatasetFromSampler(sampler),
+#                                                        **kwargs)
+#        self.sampler = sampler
+#
+#    def __iter__(self):
+#        self.dataset = DatasetFromSampler(self.sampler)
+#        indexes_of_indexes = super().__iter__()
+#        return iter(itemgetter(*indexes_of_indexes)(self.dataset))
+#
+#
 
 class ImbalancedSampler(Sampler):
 
@@ -140,7 +141,7 @@ class OverSampler(Sampler):
 
 
 
-class DistributedSampler(Sampler):
+class DistributedSamplerWrapper(Sampler):
     """ Iterable wrapper that distributes data across multiple workers.
 
     Args:
@@ -155,8 +156,9 @@ class DistributedSampler(Sampler):
         [1, 3, 5, 7, 9]
     """
 
-    def __init__(self, iterable, num_replicas=None, rank=None):
+    def __init__(self, iterable, batch_size, num_replicas=None, rank=None):
         self.iterable = iterable
+        self.batch_size = batch_size
         self.num_replicas = num_replicas
         self.rank = rank
 
@@ -177,7 +179,7 @@ class DistributedSampler(Sampler):
         )
 
     def __len__(self):
-        return len(self.iterable)
+        return int(np.ceil(len(self.iterable) * 1. / self.num_replicas))
 
 
 class DistributedBatchSampler(BatchSampler):
@@ -206,7 +208,7 @@ class DistributedBatchSampler(BatchSampler):
 
     def __iter__(self):
         for batch in self.batch_sampler:
-            yield list(DistributedSampler(batch, **self.kwargs))
+            yield list(DistributedSamplerWrapper(batch, **self.kwargs))
 
     def __len__(self):
         return len(self.batch_sampler)
