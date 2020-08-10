@@ -48,6 +48,7 @@ def get_session_attr(config):
         'fp_16': [config.get('fp_16', False)],
         'opt_level': [config.get('opt_level', None)],
         'num_bags': [config.get('num_bags', 1)],
+        'config_filepath': [config.get('config_filepath')],
         'random_state': [config['random_state']]
     }
     return attr
