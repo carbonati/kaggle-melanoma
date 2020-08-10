@@ -1,18 +1,27 @@
 input:
-  {}
-  # model: /root/workspace/kaggle-melanoma/models/misc_exp_1/efficientnet-b0_bce_224_64_concat_adam_one_cycle_20200731_1458
+  train: /workspace/data/train.csv
+  test: /workspace/data/test.csv
+  model: /workspace/models/arch_exp_1/efficientnet-b7_bce_smth_300_8_concat_adam_one_cycle_20200807_1618
 
 output:
-  predictions: /root/workspace/kaggle-melanoma/predictions
+  predictions: /workspace/predictions
 
 step: val_roc_auc_score
-eval_val: true
 eval_train: true
-eval_holdout: true
-eval_test: true
-tta: false
+eval_val: false
+eval_test: false
 num_bags: 1
-batch_size: 256
+tta: false
+batch_size: 128
 keep_prob: 1
-num_workers: 8
+num_workers: 16
 random_state: 42069
+device_ids:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7

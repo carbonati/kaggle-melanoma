@@ -8,6 +8,7 @@ import torch
 from copy import deepcopy
 from sklearn import metrics as sk_metrics
 from torch.utils.data import DataLoader, RandomSampler, BatchSampler
+from torch.utils.data.distributed import DistributedSampler
 
 import config as melanoma_config
 from data.dataset import MelanomaDataset
@@ -156,6 +157,7 @@ def get_sampler(ds,
     # df = sampler.data_source.df
     if distributed:
         sampler = DistributedSamplerWrapper(sampler, batch_size, num_replicas=num_replicas, rank=rank)
+        # sampler = DistributedSampler(sampler)
     #indices = []
     #for idx in sampler:
     #    indices.append(idx)
