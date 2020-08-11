@@ -35,6 +35,7 @@ class Trainer:
                  monitor=None,
                  distributed=False,
                  fp_16=False,
+                 save_every_n=None,
                  rank=0,
                  **kwargs):
         self.model = model
@@ -51,6 +52,7 @@ class Trainer:
         self._max_norm = max_norm
         self._distributed = distributed
         self._fp_16 = fp_16
+        self._save_every_n = save_every_n
         self._is_cuda = next(self.model.parameters()).is_cuda
 
         self._global_step = None
@@ -233,6 +235,9 @@ class Trainer:
                     if self._new_best and self.ckpt_dir is not None and self._rank == 0:
                         str_format = best_str + '\n' + str_format
                         self._save_model()
+                    elif self._save_every_n is not None and self.global_step % self._save_every_n == 0:
+                        self._save_model()
+
 
             # clear the current line of the console and log the steps results
             self.logger.write("\033[K")

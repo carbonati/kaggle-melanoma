@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, RandomSampler, BatchSampler
 from torch.utils.data.distributed import DistributedSampler
 
 import config as melanoma_config
-from data.dataset import MelanomaDataset
+from data import dataset as melanoma_dataset
 from data.augmentation import MelanomaAugmentor
 from data.samplers import BatchStratifiedSampler, DistributedSamplerWrapper, DistributedBatchSampler
 from utils import model_utils
@@ -23,6 +23,18 @@ def get_optimizer(method, model, params=None):
     optim_cls = melanoma_config.OPTIMIZER_MAP[method]
     optim = optim_cls(model.parameters(), **params)
     return optim
+
+
+def get_dataset(method,
+                df_mela,
+                **kwargs):
+    if method == 'tile':
+        dataset = melanoma_dataset.TileDataset(df_mela, **kwargs)
+    elif method == 'melanoma':
+        dataset = melanoma_dataset.MelanomaDataset(df_mela, **kwargs)
+    else:
+        raise ValueError(f'Unrecognized dataset `method` {method}')
+    return dataset
 
 
 def get_scheduler(config, optim, steps_per_epoch=None):

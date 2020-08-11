@@ -94,3 +94,39 @@ class MelanomaDataset(Dataset):
     def reset_state(self, seed=None):
         """Reset dataset random state for bagging + mutltiprocessing"""
         self._random_state = np.random.RandomState(seed)
+
+
+class TileDataset(MelanomaDataset):
+    """Melanoma dataset."""
+    def __init__(self,
+                 df,
+                 tile_size,
+                 **kwargs):
+        self.tile_size = tile_size
+        super(TileDataset, self).__init__(df, **kwargs)
+
+    def __getitem__(self, index):
+        df_index = self.df.iloc[index]
+        img = data_utils.load_image(os.path.join(df_index['image_dir'], self.image_dir),
+                                    self.image_ids[index],
+                                    self.img_format)
+        stratify_list = []
+        if self.norm_cols is not None:
+            for c in self.norm_cols:
+                stratify_list.append(c)
+                stratify_list.append(df_index[c])
+
+        img = self.preprocess(img, stratify_list=stratify_list)
+        img = img.reshape(img.shape[0] // self.tile_size,
+						  self.tile_size,
+					      img.shape[1] // self.tile_size,
+                          self.tile_size,
+                          3)
+        img = img.transpose(0,2,1,3,4).reshape(-1, self.tile_size, self.tile_size, 3)
+
+        img = torch.tensor(img, dtype=self._dtype_torch).permute(0, 3, 1, 2)
+
+        if self.training:
+            return img, self.labels[index]
+        else:
+            return img

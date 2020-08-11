@@ -18,7 +18,7 @@ except:
 
 from melanoma.utils import generic_utils as utils
 from melanoma.utils import train_utils, model_utils, data_utils
-from melanoma.data.dataset import MelanomaDataset
+from melanoma.data.dataset import MelanomaDataset, TileDataset
 from melanoma.core.trainer import Trainer
 from melanoma.evaluation.postprocess import generate_df_pred, log_model_summary
 import melanoma.config as melanoma_config
@@ -44,6 +44,7 @@ def train(config):
 
     # log activity from the training session to a logfile
     if config['local_rank'] == 0:
+        pass
         sys.stdout = utils.Tee(os.path.join(model_dir, 'train_history.log'))
     utils.set_state(config['random_state'])
     device_ids = config.get('device_ids', [0])
@@ -129,18 +130,16 @@ def train(config):
             fp_16=False
         )
 
-        train_ds = MelanomaDataset(df_train,
-                                   image_dir='train',
-                                   augmentor=train_aug,
-                                   fp_16=False,
-                                   #fp_16=config.get('fp_16'),
-                                   **config['data'])
-        val_ds = MelanomaDataset(df_val,
-                                 image_dir='train',
-                                 augmentor=val_aug,
-                                 fp_16=False,
-                                 **config['data'])
-                              #fp_16=config.get('fp_16'),
+        train_ds = train_utils.get_dataset(config['data']['method'],
+                                           df_train,
+                                           image_dir='train',
+                                           augmentor=train_aug,
+                                           **config['data']['params'])
+        val_ds = train_utils.get_dataset(config['data']['method'],
+                                         df_val,
+                                         image_dir='train',
+                                         augmentor=val_aug,
+                                         **config['data']['params'])
 
         train_sampler = train_utils.get_sampler(train_ds,
                                                 distributed=config['distributed'],
@@ -166,10 +165,11 @@ def train(config):
                             num_workers=config['num_workers'])
 
         if config.get('eval_val', False):
-            eval_ds = MelanomaDataset(df_val,
-                                      image_dir='train',
-                                      augmentor=test_aug,
-                                      **config['data'])
+            eval_ds = train_utils.get_dataset(config['data']['method'],
+                                              df_val,
+                                              image_dir='train',
+                                              augmentor=test_aug,
+                                              **config['data']['params'])
             eval_dl = DataLoader(eval_ds,
                                  batch_size=config['eval_batch_size'] * config['num_gpus'],
                                  sampler=SequentialSampler(eval_ds),
@@ -180,10 +180,11 @@ def train(config):
         if config.get('eval_holdout'):
             df_holdout = df_mela.loc[df_mela['fold'] == 'holdout'].reset_index(drop=True)
             if len(df_holdout) > 0:
-                holdout_ds = MelanomaDataset(df_holdout,
-                                             image_dir='train',
-                                             augmentor=test_aug,
-                                             **config['data'])
+                holdout_ds = train_utils.get_dataset(config['data']['method'],
+                                                     df_holdout,
+                                                     image_dir='train',
+                                                     augmentor=test_aug,
+                                                     **config['data']['params'])
                 holdout_dl = DataLoader(holdout_ds,
                                      batch_size=config['eval_batch_size'] * config['num_gpus'],
                                      sampler=SequentialSampler(holdout_ds),
@@ -196,11 +197,12 @@ def train(config):
 
         if df_test is not None:
             # use the same augmentor as the validation set
-            test_ds = MelanomaDataset(df_test,
-                                      image_dir='test',
-                                      target_col=None,
-                                      augmentor=test_aug,
-                                      **config['data'])
+            test_ds = train_utils.get_dataset(config['data']['method'],
+                                              df_test,
+                                              image_dir='test',
+                                              target_col=None,
+                                              augmentor=test_aug,
+                                              **config['data']['params'])
             test_sampler = train_utils.get_sampler(test_ds, method='sequential')
             test_dl = DataLoader(test_ds,
                                  batch_size=config['eval_batch_size'] * config['num_gpus'],
@@ -275,10 +277,11 @@ def train(config):
             if config.get('eval_train'):
                 group = 'train'
                 print(f'\nGenerating {num_bags} `{group}` prediction(s).')
-                train_ds = MelanomaDataset(df_train,
-                                           image_dir='train',
-                                           augmentor=test_aug,
-                                           **config['data'])
+                train_ds = train_utils.get_dataset(config['data']['method'],
+                                                   df_train,
+                                                   image_dir='train',
+                                                   augmentor=test_aug,
+                                                   **config['data']['params'])
                 train_dl = DataLoader(train_ds,
                                       batch_size=config['eval_batch_size'] * config['num_gpus'],
                                       sampler=train_utils.get_sampler(train_ds, method='sequential'),
@@ -323,7 +326,6 @@ if __name__ == '__main__':
 
     config = utils.load_config_from_yaml(args.config_filepath)
     config = utils.prepare_config(config, args)
-    config['model']['pool_params']['method'] = 'max'
 
     train(config)
 

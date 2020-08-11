@@ -75,7 +75,7 @@ def load_model(ckpt_dir,
     """Loads pretrained model from disk."""
     config = load_config(ckpt_dir)
     model_params = config['model']
-    model_params['pretrained'] = False
+    model_params['params']['pretrained'] = False
     model_params.update(kwargs)
     if filename is None:
         state_dict = load_best_state_dict(ckpt_dir, step=step, device=device)
@@ -91,11 +91,15 @@ def load_model(ckpt_dir,
     return model
 
 
-def get_model(backbone, **kwargs):
-    if backbone.startswith('efficientnet'):
-        model = melanoma_models.EfficientModel(backbone, **kwargs)
+def get_model(method, params=None):
+    params = params or {}
+    if method == 'tile':
+        model = melanoma_models.TileModel(**params)
     else:
-        model = melanoma_models.BaseModel(backbone, **kwargs)
+        if params.get('backbone', '').startswith('efficientnet'):
+            model = melanoma_models.EfficientModel(**params)
+        else:
+            model = melanoma_models.BaseModel(**params)
     return model
 
 
