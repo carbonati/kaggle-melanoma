@@ -160,7 +160,7 @@ def train(config):
                               num_workers=num_workers,
                               drop_last=True)
         val_dl = DataLoader(val_ds,
-                            batch_size=config['eval_batch_size'] * config['num_gpus'],
+                            batch_size=config['eval_batch_size'],
                             sampler=SequentialSampler(val_ds),
                             num_workers=config['num_workers'])
 

@@ -88,6 +88,13 @@ def prepare_config(config, args):
     config['distributed'] = config.get('distributed', False)
     return config
 
+def cleanup_config(config):
+    # hotfix for old configs
+    if not config['model'].get('method'):
+        config['model'] = {'method': 'melanoma', 'params': config['model']}
+    if not config['data'].get('method'):
+        config['data'] = {'method': 'melanoma', 'params': config['data']}
+    return config
 
 def get_model_fname(config):
     """

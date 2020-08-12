@@ -27,8 +27,12 @@ import melanoma.config as melanoma_config
 def evaluate(config):
     """Run a melanoma training session."""
     model_dir = config['input']['model']
-    output_dir = config['output']['predictions']
+    if config.get('experiment_name'):
+        output_dir = os.path.join(config['output']['predictions'], config['experiment_name'])
+    else:
+        output_dir = os.path.join(config['output']['predictions'])
     train_config = model_utils.load_config(model_dir)
+    train_config = utils.cleanup_config(train_config)
 
     img_version = train_config['input']['images'].strip('/').split('/')[-1]
     model_name = model_dir.strip('/').split('/')[-1]
@@ -62,6 +66,7 @@ def evaluate(config):
 
     if config['eval_test'] and config['input'].get('test'):
         df_test = data_utils.load_data(config['input']['test'],
+                                       image_map=train_config['input'].get('image_map'),
                                        keep_prob=config.get('keep_prob', 1.),
                                        random_state=config['random_state'])
     else:
@@ -91,7 +96,7 @@ def evaluate(config):
         num_workers = config['num_workers']
 
         # instantiate model
-        model = model_utils.load_model(ckpt_dir, step=config.get('step', 'val_roc_auc_score'))
+        model = model_utils.load_model(ckpt_dir, step=config.get('step'))
         model = model.cuda()
         model = nn.DataParallel(model, device_ids).to(device)
 
@@ -124,8 +129,8 @@ def evaluate(config):
             df_train = df_mela.loc[~df_mela['fold'].isin([fold_id, 'test', 'holdout'])].reset_index(drop=True)
             train_ds = MelanomaDataset(df_train,
                                        image_dir='train',
-                                       augmentor=val_aug,
-                                       **train_config['data'])
+                                       augmentor=test_aug,
+                                       **train_config['data']['params'])
             train_sampler = train_utils.get_sampler(train_ds, method='sequential')
             train_dl = DataLoader(train_ds,
                                   batch_size=config['batch_size'],
@@ -139,7 +144,7 @@ def evaluate(config):
             val_ds = MelanomaDataset(df_val,
                                      image_dir='train',
                                      augmentor=val_aug,
-                                     **train_config['data'])
+                                     **train_config['data']['params'])
             val_sampler = train_utils.get_sampler(val_ds, method='sequential',)
             val_dl = DataLoader(val_ds,
                                 batch_size=config['batch_size'],
@@ -148,18 +153,18 @@ def evaluate(config):
         else:
             val_dl = None
 
-        df_holdout is not None:
-            holdout_ds = MelanomaDataset(df_holdout
+        if df_holdout is not None:
+            holdout_ds = MelanomaDataset(df_holdout,
                                          image_dir='train',
                                          augmentor=test_aug,
-                                         **train_config['data'])
-            val_sampler = train_utils.get_sampler(val_ds, method='sequential',)
-            val_dl = DataLoader(val_ds,
+                                         **train_config['data']['params'])
+            holdout_sampler = train_utils.get_sampler(holdout_ds, method='sequential')
+            holdout_dl = DataLoader(holdout_ds,
                                 batch_size=config['batch_size'],
-                                sampler=SequentialSampler(val_ds),
+                                sampler=holdout_sampler,
                                 num_workers=config['num_workers'])
         else:
-            val_dl = None
+            holdout_dl = None
 
         if df_test is not None:
             # use the same augmentor as the validation set
@@ -167,7 +172,7 @@ def evaluate(config):
                                       image_dir='test',
                                       target_col=None,
                                       augmentor=test_aug,
-                                      **train_config['data'])
+                                      **train_config['data']['params'])
             test_sampler = train_utils.get_sampler(test_ds, method='sequential')
             test_dl = DataLoader(test_ds,
                                  batch_size=config['batch_size'],
@@ -198,6 +203,17 @@ def evaluate(config):
             df_pred_val.to_csv(os.path.join(output_fold_dir, 'val_predictions.csv'),
                                index=False)
             log_model_summary(df_pred_val, logger=trainer.logger, group='val')
+
+        if holdout_dl is not None:
+            print(f'\nGenerating {num_bags} holdout prediction(s).')
+            df_pred_holdout = generate_df_pred(trainer,
+                                           holdout_dl,
+                                           y_true=holdout_dl.dataset.get_labels(),
+                                           df_mela=df_holdout,
+                                           num_bags=num_bags)
+            df_pred_holdout.to_csv(os.path.join(output_fold_dir, 'holdout_predictions.csv'),
+                               index=False)
+            log_model_summary(df_pred_holdout, logger=trainer.logger, group='holdout')
 
         if test_dl is not None:
             print(f'\nGenerating {num_bags} test prediction(s).')

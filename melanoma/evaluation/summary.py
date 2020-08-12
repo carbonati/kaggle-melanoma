@@ -7,6 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from utils import data_utils, model_utils, train_utils
+from utils import generic_utils as utils
 from evaluation.metrics import compute_auc
 
 METRICS = [
@@ -25,12 +26,12 @@ METRICS = [
 def get_session_attr(config):
     attr = {
         'cv_folds': [config['input']['cv_folds'].split('/')[-1]],
-        'backbone': [config['model']['backbone']],
+        'backbone': [config['model']['params']['backbone']],
         'sampler': [config['sampler']['method']],
         'optim': [config['optimizer'].get('method')],
         'initial_lr': [config['optimizer']['params']['lr']],
-        'pool': [config['model']['pool_params']],
-        'output_net': [config['model'].get('output_net_params')],
+        'pool': [config['model']['params']['pool_params']],
+        'output_net': [config['model']['params'].get('output_net_params')],
         'scheduler': [config['scheduler'].get('method')],
         'scheduler_params': [config['scheduler'].get('params')],
         'criterion': [config['criterion']['method']],
@@ -41,7 +42,7 @@ def get_session_attr(config):
         'train_only': [config['augmentations'].get('train_only')],
         'batch_size': [config['batch_size']],
         'class_weight': [config.get('class_weight', config['criterion'].get('params', {}).get('class_weight'))],
-        'norm_cols': [config['data'].get('norm_cols')],
+        'norm_cols': [config['data']['params'].get('norm_cols')],
         'reg_params': [config['trainer'].get('reg_params')],
         'max_norm': [config['trainer'].get('max_norm')],
         'distributed': [config.get('distributed', False)],
@@ -87,6 +88,7 @@ def generate_df_scores(exp_dirs, df_panda=None):
                 fold_dirs = glob.glob(os.path.join(root, model_name, 'fold_*'))
                 try:
                     config = model_utils.load_config(os.path.join(root, model_name))
+                    config = utils.cleanup_config(config)
                 except:
                     continue
                 for fold_dir in fold_dirs:

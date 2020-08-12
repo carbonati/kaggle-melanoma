@@ -75,6 +75,9 @@ def load_model(ckpt_dir,
     """Loads pretrained model from disk."""
     config = load_config(ckpt_dir)
     model_params = config['model']
+    # hotfix
+    if not model_params.get('method'):
+        model_params = {'method': 'melanoma', 'params': model_params}
     model_params['params']['pretrained'] = False
     model_params.update(kwargs)
     if filename is None:
@@ -104,14 +107,14 @@ def get_model(method, params=None):
 
 
 def get_backbone(backbone, pretrained=True, **kwargs):
-    if backbone in ['resnext50_32x4d_ssl', 'resnet18_ssl', 'resnet50_ssl', 'resnext101_32x4d_ssl']:
+    if backbone in ['resnext50_32x4d_ssl', 'resnet18_ssl', 'resnet50_ssl', 'resnet101_ssl', 'resnext101_32x4d_ssl']:
         if pretrained:
             model = torch.hub.load(melanoma_config.ARCH_TO_PRETRAINED[backbone], backbone)
         else:
             model = getattr(_models, backbone.split('_ssl')[0])(pretrained=pretrained)
         encoder = nn.Sequential(*list(model.children())[:-2])
         in_features = model.fc.in_features
-    elif backbone in ['resnet18', 'resnet34', 'resnet50']:
+    elif backbone in ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']:
         pretrained = 'imagenet' if pretrained else None
         model = getattr(_models, backbone)(pretrained=pretrained)
         in_features = model.fc.in_features
@@ -121,6 +124,10 @@ def get_backbone(backbone, pretrained=True, **kwargs):
         model = getattr(pretrainedmodels, backbone)(pretrained=pretrained)
         encoder = nn.Sequential(*list(model.children())[:-2])
         in_features = model.last_linear.in_features
+    elif backbone.startswith('resnest'):
+        model = torch.hub.load('zhanghang1989/ResNeSt', backbone, pretrained=pretrained)
+        encoder = nn.Sequential(*list(model.children())[:-2])
+        in_features = model.fc.in_features
     elif backbone.startswith('efficientnet'):
         if pretrained:
             encoder = enet.from_pretrained(backbone, **kwargs)
