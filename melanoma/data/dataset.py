@@ -117,14 +117,17 @@ class TileDataset(MelanomaDataset):
                 stratify_list.append(df_index[c])
 
         img = self.preprocess(img, stratify_list=stratify_list)
-        img = img.reshape(img.shape[0] // self.tile_size,
-						  self.tile_size,
-					      img.shape[1] // self.tile_size,
-                          self.tile_size,
-                          3)
-        img = img.transpose(0,2,1,3,4).reshape(-1, self.tile_size, self.tile_size, 3)
+        img = torch.tensor(img, dtype=self._dtype_torch)
+        img = img.permute(2,0,1).data.unfold(0,3,3).unfold(1,32,32).unfold(2,32,32)
+        img = img.reshape(-1, 3, 32, 32)
+        #img = img.reshape(img.shape[0] // self.tile_size,
+		#				  self.tile_size,
+		#			      img.shape[1] // self.tile_size,
+        #                  self.tile_size,
+        #                  3)
+        #img = img.transpose(0,2,1,3,4).reshape(-1, self.tile_size, self.tile_size, 3)
 
-        img = torch.tensor(img, dtype=self._dtype_torch).permute(0, 3, 1, 2)
+        #img = torch.tensor(img, dtype=self._dtype_torch).permute(0, 3, 1, 2)
 
         if self.training:
             return img, self.labels[index]

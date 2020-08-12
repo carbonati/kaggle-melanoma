@@ -45,6 +45,8 @@ AUGMENTATION_MAP = {
     'dropout': augmentation.CoarseDropout,
     'one_of': albumentations.OneOf,
     'hair': augmentation.AdvancedHairAugmentation,
+    'gamma': albumentations.RandomGamma,
+    'channel': albumentations.ChannelShuffle,
 }
 
 ARCH_TO_PRETRAINED = {
@@ -89,6 +91,7 @@ POOLING_MAP = {
     'avg': layers.AdaptiveAvgPool2d,
     'max': layers.AdaptiveMaxPool2d,
     'concat_gem': layers.AdaptiveConcatGeMPool2d,
+    'attention': layers.AttentionPool1d,
 }
 
 #POSTPROCESSOR_MAP = {

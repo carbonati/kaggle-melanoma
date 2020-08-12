@@ -34,7 +34,6 @@ def train(config):
             os.makedirs(log_dir, exist_ok=True)
 
     # model output configurations
-    img_version = config['input']['images'].strip('/').split('/')[-1]
     model_fname = utils.get_model_fname(config)
     model_dir = os.path.join(log_dir, model_fname)
     if not os.path.exists(model_dir):
@@ -58,6 +57,7 @@ def train(config):
                                    image_map=config['input']['image_map'],
                                    keep_prob=config.get('keep_prob', 1.),
                                    random_state=config['random_state'])
+
     fold_ids = config.get('fold_ids', list(set(df_mela['fold'].tolist())))
     fold_ids = fold_ids if isinstance(fold_ids, list) else [fold_ids]
 
@@ -68,8 +68,6 @@ def train(config):
                                        random_state=config['random_state'])
     else:
         df_test = None
-
-
 
     # begin training session
     for fold_id in fold_ids:
@@ -82,6 +80,9 @@ def train(config):
             os.makedirs(ckpt_dir, exist_ok=True)
 
         df_train = df_mela.loc[~df_mela['fold'].isin([fold_id, 'test', 'holdout'])].reset_index(drop=True)
+        if config.get('external_train'):
+            # train only on external data
+            df_train = df_train.loc[df_train['source'] != 'ISIC_2020'].reset_index(drop=True)
         df_val = df_mela.loc[df_mela['fold'] == fold_id].reset_index(drop=True)
 
         if config['distributed']:
@@ -119,8 +120,10 @@ def train(config):
 
         # data utils
         if 'normalize' in config['augmentations'].get('transforms', {}):
-            img_stats = data_utils.load_img_stats(os.path.join(config['input']['cv_folds'], img_version),
-                                                  fold_id)
+            img_stats = data_utils.load_img_stats(
+                os.path.join(config['input']['cv_folds'], config['input']['img_version']),
+                fold_id
+            )
             config['augmentations']['transforms']['normalize'] = img_stats
 
         # augmentors

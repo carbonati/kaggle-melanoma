@@ -110,10 +110,9 @@ def get_model_fname(config):
     datetime
     """
     dt_str = datetime.datetime.now().strftime('%Y%m%d_%H%M')
-    img_size = config['input']['images'].strip('/').split('/')[-1].split('x')[0]
     model_fname = config['model']['params']['backbone']
     model_fname += f"_{config['criterion']['method']}"
-    model_fname += f'_{img_size}'
+    model_fname += f"_{config['input']['img_version'].split('x')[0]}"
     model_fname += f"_{config['batch_size']}"
     if config['model']['params'].get('pool_params'):
         model_fname += f"_{config['model']['params']['pool_params']['method']}"

@@ -88,3 +88,26 @@ class AdaptiveConcatGeMPool2d(nn.Module):
     def forward(self, x):
         batch_size = len(x)
         return torch.cat([self.mp(x).reshape(batch_size, -1), self.ap(x).reshape(batch_size, -1), self.gem(x)], 1)
+
+
+class AttentionPool1d(nn.Module):
+    def __init__(self, in_channels, num_hidden=49, dropout=0.25):
+        super().__init__()
+        self._in_channels = in_channels
+
+        modules = [
+            nn.Linear(self._in_channels, num_hidden, bias=False),
+            nn.Tanh()
+        ]
+        if dropout > 0:
+            modules.append(nn.Dropout(dropout))
+        modules.append(nn.Linear(num_hidden, 1, bias=False))
+        self.attention = nn.Sequential(*modules)
+
+    def forward(self,x):
+        num_patch = x.size(1)
+        x = x.view(-1,x.size(2))
+        A = self.attention(x)
+        A = A.view(-1,num_patch,1)
+        wt = F.softmax(A,dim=1)
+        return (x.view(-1,num_patch,self._in_channels) * wt).sum(dim=1), A
