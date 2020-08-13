@@ -83,7 +83,12 @@ def trim_img(img):
     return img
 
 
-def resize_img(img, size, interpolation=cv2.INTER_AREA, return_meta=True):
+def resize_img(img,
+               size,
+               cropped_coords=None,
+               cropped_dim=None,
+               interpolation=cv2.INTER_AREA,
+               return_meta=True):
     """Resizes and image and returns normalization statistics.
 
     Parameters
@@ -107,6 +112,18 @@ def resize_img(img, size, interpolation=cv2.INTER_AREA, return_meta=True):
     if not isinstance(size, (tuple, list)):
         size = (size, size)
     img = trim_img(img)
+    new_dim = img.shape[0]
+
+    if cropped_dim is not None:
+        ratio = new_dim / cropped_dim
+    else:
+        ratio = 1
+    if cropped_coords is not None:
+        bbox = np.array([cropped_coords['h_0'], cropped_coords['w_0'], cropped_coords['h_1'], cropped_coords['w_1']])
+        new_bbox = np.asarray(bbox * ratio, dtype=np.int)
+        new_coords = get_square_bbox(new_bbox, img_size=new_dim)
+        img = img[new_coords[0]:new_coords[2], new_coords[1]:new_coords[3]]
+
     img = cv2.resize(img, size, interpolation=interpolation)
 
     if return_meta:
@@ -289,3 +306,34 @@ def mixup_data(x, y, alpha=1.0, use_cuda=True):
     x_mixed = lam * x + (1 - lam) * x[indices, :]
     y_mixed = y[indices]
     return x_mixed, y, y_mixed, lam
+
+
+def get_square_bbox(bbox, img_size=224, pad=None):
+    """
+    Returns
+    -------
+    bbox_square : list
+        (min_row, min_col, max_row, max_col)
+    """
+    if not isinstance(bbox, np.ndarray):
+        bbox = np.asarray(bbox)
+    if pad is not None and pad > 0:
+        bbox[0] = max(bbox[0] - pad, 0)
+        bbox[1] = max(bbox[1] - pad, 0)
+        bbox[2] = min(bbox[2] + pad, img_size)
+        bbox[3] = min(bbox[3] + pad, img_size)
+
+    h_delta = bbox[2] - bbox[0]
+    w_delta = bbox[3] - bbox[1]
+
+    # (h, w)
+    center = (bbox[0] + (h_delta // 2), bbox[1] + (w_delta // 2))
+    pad = max(h_delta, w_delta) // 2
+    # (min_row, min_col, max_row, max_col)
+    bbox_square = [
+        np.clip(center[0] - pad, 0, img_size),
+        np.clip(center[1] - pad, 0, img_size),
+        np.clip(center[0] + pad, 0, img_size),
+        np.clip(center[1] + pad, 0, img_size)
+    ]
+    return bbox_square

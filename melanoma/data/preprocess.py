@@ -10,7 +10,6 @@ from tqdm import tqdm
 from skimage.measure import regionprops
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
-from data.augmentation import MelanomaAugmentor
 from utils import data_utils, model_utils, train_utils
 from utils import generic_utils as utils
 from data import dataset as melanoma_dataset
@@ -75,6 +74,7 @@ def preprocess_images(train_image_dir,
         for row in tqdm(df_mela.itertuples(), total=len(df_mela), desc='Preprocessing images'):
             image_id = row.image_name
 
+            print(image_id)
             img = data_utils.load_image(row.image_dir, image_id, bgr2rgb=bgr2rgb)
             if size is None:
                 img = data_utils.trim_img(img)
@@ -338,7 +338,8 @@ def generate_cropped_coords(config):
         json.dump(config, f)
 
     # augmentor and dataset
-    aug = MelanomaAugmentor({'normalize': img_stats}, norm_cols=norm_cols)
+    aug, _, _ = train_utils.get_augmentor(transforms={'normalize': img_stats},
+                                          norm_cols=norm_cols)
     dataset = train_utils.get_dataset('tile',
                                       df_mela,
                                       augmentor=aug,
