@@ -25,6 +25,8 @@ def preprocess_images(train_image_dir,
                       img_format='jpg',
                       quality=100,
                       return_meta=True,
+                      cropped_dir=None,
+                      cropped_dim=None,
                       test_image_dir=None,
                       test_filepath=None,
                       duplicate_path=None,
@@ -67,18 +69,24 @@ def preprocess_images(train_image_dir,
     print(f'Saving test images to {test_output_path}')
     if return_meta:
         print(f'Saving metadata to {meta_dir}')
+
+    cropped_coords = None
     with ZipFile(train_output_path, 'w') as train_file, ZipFile(test_output_path, 'w') as test_file:
         for row in tqdm(df_mela.itertuples(), total=len(df_mela), desc='Preprocessing images'):
             image_id = row.image_name
-            #from IPython import embed
-            #embed()
+
             img = data_utils.load_image(row.image_dir, image_id, bgr2rgb=bgr2rgb)
             if size is None:
                 img = data_utils.trim_img(img)
                 meta = data_utils.get_img_stats(img)
             else:
+                if cropped_dir is not None:
+                    with open(os.path.join(cropped_dir, row.partition, f'{image_id}.json'), 'r') as f:
+                        cropped_coords = json.load(f)
                 img, meta = data_utils.resize_img(img,
                                                   size=size,
+                                                  cropped_coords=cropped_coords,
+                                                  cropped_dim=cropped_dim,
                                                   interpolation=interpolation)
 
                 img = cv2.imencode(f'.{img_format}', img, [compression, quality])[1]
@@ -243,35 +251,11 @@ def prepare_isic_2019(root, output):
     print(f'Saving 2019 ISIC train file to {filepath}')
     df_train.to_csv(filepath, index=False)
 
-def get_square_bbox(bbox, img_size=224, pad=None):
-    """
-    Returns
-    -------
-    bbox_square : list
-        (min_row, min_col, max_row, max_col)
-    """
-    if not isinstance(bbox, np.ndarray):
-        bbox = np.asarray(bbox)
-    if pad is not None and pad > 0:
-        bbox[0] = max(bbox[0] - pad, 0)
-        bbox[1] = max(bbox[1] - pad, 0)
-        bbox[2] = min(bbox[2] + pad, img_size)
-        bbox[3] = min(bbox[3] + pad, img_size)
 
-    h_delta = bbox[2] - bbox[0]
-    w_delta = bbox[3] - bbox[1]
-
-    # (h, w)
-    center = (bbox[0] + (h_delta // 2), bbox[1] + (w_delta // 2))
-    pad = max(h_delta, w_delta) // 2
-    # (min_row, min_col, max_row, max_col)
-    bbox_square = [
-        np.clip(center[0] - pad, 0, img_size),
-        np.clip(center[1] - pad, 0, img_size),
-        np.clip(center[0] + pad, 0, img_size),
-        np.clip(center[1] + pad, 0, img_size)
-    ]
-    return bbox_square
+def prepare_v2_malignant(root, output):
+    df_train = pd.read_csv(os.path.join(root, 'train_malig_2.csv'))
+    df_train['source'] = 'v2_malignant'
+    return df_train
 
 
 def get_crop_coords(weights, img_size=224, pad=None):
@@ -285,7 +269,7 @@ def get_crop_coords(weights, img_size=224, pad=None):
     props = regionprops(binary)
     if len(props) > 0:
         bbox = regionprops(binary)[0].bbox
-        square_bbox = get_square_bbox(bbox, img_size=img_size, pad=pad)
+        square_bbox = data_utils.get_square_bbox(bbox, img_size=img_size, pad=pad)
     else:
         square_bbox = [0, img_size, 0, img_size]
 
@@ -373,3 +357,4 @@ def generate_cropped_coords(config):
         group = 'test' if df_idx['fold'] == 'test' else 'train'
         with open(os.path.join(output_dir, df_idx['source_group'], group, f"{df_idx['image_name']}.json"), 'w') as f:
             json.dump(crop_coords, f)
+

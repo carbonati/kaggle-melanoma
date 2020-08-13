@@ -1,16 +1,18 @@
 input:
-  # train_filepath: /home/carbonati/workspace/kaggle-melanoma/data/external_data/isic_2019.csv
-  # train_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/skin_lesion_2019/ISIC_2019_Training_Input/ISIC_2019_Training_Input
-  train_filepath: /home/carbonati/workspace/kaggle-melanoma/data/train.csv
-  test_filepath: /home/carbonati/workspace/kaggle-melanoma/data/test.csv
-  train_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/jpeg/train
-  test_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/jpeg/test
+  #train_filepath: /home/carbonati/workspace/kaggle-melanoma/data/external_data/isic_2019.csv
+  #train_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/skin_lesion_2019/ISIC_2019_Training_Input/ISIC_2019_Training_Input
+  #train_filepath: /home/carbonati/workspace/kaggle-melanoma/data/train.csv
+  #test_filepath: /home/carbonati/workspace/kaggle-melanoma/data/test.csv
+  #train_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/jpeg/train
+  #test_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/jpeg/test
+  train_filepath: /home/carbonati/workspace/kaggle-melanoma/data/external_data/train_malig_2.csv
+  train_image_dir: /home/carbonati/workspace/kaggle-melanoma/data/v2_1024/jpeg1024
 
 output:
-  output_dir: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020
+  output_dir: /home/carbonati/workspace/kaggle-melanoma/data/v2_malignant
 
 data:
-  size: 224
+  size: 1024
   interpolation: 4
   quality: 100
   img_format: jpg

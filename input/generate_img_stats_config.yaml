@@ -1,9 +1,25 @@
 input:
   train: /home/carbonati/workspace/kaggle-melanoma/data/train.csv
   duplicates: /home/carbonati/workspace/kaggle-melanoma/data/sus/2020_Challenge_duplicates.csv
-  cv_folds: /home/carbonati/workspace/kaggle-melanoma/data/cv_folds/cv_folds_20200728_0112
-  image_dir: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020/224x224_jpg_100_3
+  cv_folds: /home/carbonati/workspace/kaggle-melanoma/data/cv_folds/cv_folds_20200802_0048
+  image_dir: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020/1024x1024_jpg_100_4
+  image_map:
+    ISIC_2020: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2020/1024x1024_jpg_100_4
+    ISIC_2019: /home/carbonati/workspace/kaggle-melanoma/data/ISIC_2019/1024x1024_jpg_100_4
+    MSK-1: /home/carbonati/workspace/kaggle-melanoma/data/v2_malignant/1024x1024_jpg_100_4
+    MSK-2: /home/carbonati/workspace/kaggle-melanoma/data/v2_malignant/1024x1024_jpg_100_4
+    UDA-1: /home/carbonati/workspace/kaggle-melanoma/data/v2_malignant/1024x1024_jpg_100_4
+    UDA-2: /home/carbonati/workspace/kaggle-melanoma/data/v2_malignant/1024x1024_jpg_100_4
+    2018 JID Editorial Images: /home/carbonati/workspace/kaggle-melanoma/data/v2_malignant/1024x1024_jpg_100_4
+  external_filepaths:
+    - /home/carbonati/workspace/kaggle-melanoma/data/external_data/isic_2019.csv
+    - /home/carbonati/workspace/kaggle-melanoma/data/external_data/train_malig_2.csv
 
 data:
   stratify:
+    - source
     - anatom_site_general_challenge
+  min_samples: 50
+
+default:
+  keep_prob: 1

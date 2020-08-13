@@ -6,21 +6,25 @@ output:
   root: /home/carbonati/workspace/kaggle-melanoma/data/cv_folds
 
 cv_folds:
-  test_size: 0
+  test_size: .1
   num_folds: 10
   index_col: patient_id
   stratify_val:
     - malignant_rate
     - num_images
-    - anatom_site_general_challenge
+#    - anatom_site_general_challenge
+  stratify_test:
+    - malignant_rate
+    - num_images
+#    - anatom_site_general_challenge
   random_state: 42069
 
 preprocess:
   malignant_rate:
-    n_bins: 12
+    n_bins: 50
     strategy: kmeans
-    apply_log: true
+    apply_log: false # true
   num_images:
-    n_bins: 10
+    n_bins: 5
     strategy: quantile
     apply_log: true
