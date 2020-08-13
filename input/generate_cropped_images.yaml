@@ -1,0 +1,28 @@
+input:
+  train: /root/workspace/kaggle-melanoma/data/train.csv
+  test: /root/workspace/kaggle-melanoma/data/test.csv
+  img_version: 224x224_jpg_100_4
+  duplicates: /root/workspace/kaggle-melanoma/data/sus/2020_Challenge_duplicates.csv
+  cv_folds: /root/workspace/kaggle-melanoma/data/cv_folds/cv_folds_20200802_0048
+  external_filepaths:
+    - /root/workspace/kaggle-melanoma/data/external_data/isic_2019.csv
+    - /root/workspace/kaggle-melanoma/data/external_data/train_malig_2.csv
+  image_map:
+    ISIC_2020: /root/workspace/kaggle-melanoma/data/ISIC_2020/224x224_jpg_100_4/
+    ISIC_2019: /root/workspace/kaggle-melanoma/data/ISIC_2019/224x224_jpg_100_4/
+    MSK-1: /root/workspace/kaggle-melanoma/data/v2_malignant/224x224_jpg_100_4
+    MSK-2: /root/workspace/kaggle-melanoma/data/v2_malignant/224x224_jpg_100_4
+    UDA-1: /root/workspace/kaggle-melanoma/data/v2_malignant/224x224_jpg_100_4
+    UDA-2: /root/workspace/kaggle-melanoma/data/v2_malignant/224x224_jpg_100_4
+    2018 JID Editorial Images: /root/workspace/kaggle-melanoma/data/v2_malignant/224x224_jpg_100_4
+
+output:
+  output_dir: /root/workspace/kaggle-melanoma/data/cropped_images
+
+model:
+  ckpt_dir: /root/workspace/kaggle-melanoma/attn_models/attn_exp_1/resnet34_bce_smth_224_128_attention_adam_one_cycle_20200813_0601/fold_0
+  step: 3
+
+default:
+  pad: 16
+  keep_prob: 1

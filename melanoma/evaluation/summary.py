@@ -43,6 +43,7 @@ def get_session_attr(config):
         'batch_size': [config['batch_size']],
         'class_weight': [config.get('class_weight', config['criterion'].get('params', {}).get('class_weight'))],
         'norm_cols': [config['data']['params'].get('norm_cols')],
+        'post_norm': [config['augmentations'].get('post_norm')],
         'reg_params': [config['trainer'].get('reg_params')],
         'max_norm': [config['trainer'].get('max_norm')],
         'distributed': [config.get('distributed', False)],

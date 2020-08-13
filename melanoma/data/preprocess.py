@@ -4,11 +4,16 @@ import uuid
 import numpy as np
 import pandas as pd
 import cv2
+import torch
 from zipfile import ZipFile
 from tqdm import tqdm
+from skimage.measure import regionprops
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
-from utils import data_utils
+from data.augmentation import MelanomaAugmentor
+from utils import data_utils, model_utils, train_utils
+from utils import generic_utils as utils
+from data import dataset as melanoma_dataset
 import config as melanoma_config
 
 
@@ -187,12 +192,6 @@ def generate_img_stats(df, target_col='target', name=None):
         img_mean += meta['mean']
         img_var += np.asarray(meta['std'])**2
 
-#    for image_id in tqdm(df['image_name'].values, total=num_samples, desc=name):
-#        with open(os.path.join(meta_dir, f'{image_id}.json'), 'r') as f:
-#            meta = eval(json.load(f))
-#        img_mean += meta['mean']
-#        img_var += np.asarray(meta['std'])**2
-
     img_mean /= num_samples
     img_var /= num_samples
     img_stats = {
@@ -243,3 +242,134 @@ def prepare_isic_2019(root, output):
     filepath = os.path.join(output, 'isic_2019.csv')
     print(f'Saving 2019 ISIC train file to {filepath}')
     df_train.to_csv(filepath, index=False)
+
+def get_square_bbox(bbox, img_size=224, pad=None):
+    """
+    Returns
+    -------
+    bbox_square : list
+        (min_row, min_col, max_row, max_col)
+    """
+    if not isinstance(bbox, np.ndarray):
+        bbox = np.asarray(bbox)
+    if pad is not None and pad > 0:
+        bbox[0] = max(bbox[0] - pad, 0)
+        bbox[1] = max(bbox[1] - pad, 0)
+        bbox[2] = min(bbox[2] + pad, img_size)
+        bbox[3] = min(bbox[3] + pad, img_size)
+
+    h_delta = bbox[2] - bbox[0]
+    w_delta = bbox[3] - bbox[1]
+
+    # (h, w)
+    center = (bbox[0] + (h_delta // 2), bbox[1] + (w_delta // 2))
+    pad = max(h_delta, w_delta) // 2
+    # (min_row, min_col, max_row, max_col)
+    bbox_square = [
+        np.clip(center[0] - pad, 0, img_size),
+        np.clip(center[1] - pad, 0, img_size),
+        np.clip(center[0] + pad, 0, img_size),
+        np.clip(center[1] + pad, 0, img_size)
+    ]
+    return bbox_square
+
+
+def get_crop_coords(weights, img_size=224, pad=None):
+    num_tiles = int(np.sqrt(weights.shape[1]))
+    upscaled = cv2.resize(weights.view(num_tiles, num_tiles).detach().cpu().numpy(),
+                          (img_size, img_size),
+                          interpolation=cv2.INTER_LINEAR)
+    binary = (upscaled > (upscaled.mean() + upscaled.std())).astype(np.uint8)
+
+    # conver the bounding box into a square bounding box
+    props = regionprops(binary)
+    if len(props) > 0:
+        bbox = regionprops(binary)[0].bbox
+        square_bbox = get_square_bbox(bbox, img_size=img_size, pad=pad)
+    else:
+        square_bbox = [0, img_size, 0, img_size]
+
+    crop_coords = {
+        'h_0': int(square_bbox[0]),
+        'h_1': int(square_bbox[2]),
+        'w_0': int(square_bbox[1]),
+        'w_1': int(square_bbox[3]),
+    }
+    return crop_coords
+
+
+def generate_cropped_coords(config):
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda:0" if use_cuda else "cpu")
+    # load model and train config
+    model = model_utils.load_model(**config['model']).eval()
+    model.to(device)
+
+    config_filepath = os.path.join(config['model']['ckpt_dir'].rstrip('/').split('fold')[0],
+                                   'config.json')
+    train_config = utils.load_config_from_yaml(config_filepath)
+
+    img_version = train_config['input']['img_version']
+    img_size = int(img_version.split('x')[0])
+    tile_size = train_config['data']['params']['tile_size']
+    pad = config['default'].get('pad', 0)
+    output_dir = os.path.join(config['output']['output_dir'], f'{img_version}_{tile_size}_{pad}')
+
+    # cv folds and image stats
+    cv_folds_dir = train_config['input']['cv_folds']
+    img_stats = data_utils.load_img_stats(os.path.join(cv_folds_dir, img_version), 0)
+    norm_cols = train_config['data'].get('norm_cols')
+
+    df_mela = data_utils.load_data(config['input']['train'],
+                                   duplicate_path=config['input'].get('duplicates'),
+                                   cv_folds_dir=cv_folds_dir,
+                                   external_filepaths=config['input'].get('external_filepaths'),
+                                   image_map=config['input'].get('image_map'),
+                                   keep_prob=config['default'].get('keep_prob', 1))
+
+    df_test = data_utils.load_data(config['input']['test'],
+                                   image_map=config['input'].get('image_map'),
+                                   keep_prob=config['default'].get('keep_prob', 1))
+    df_test['fold'] = 'test'
+    df_test['target'] = None
+
+    df_mela = pd.concat((df_mela, df_test), axis=0, ignore_index=True)
+    df_mela['image_dir'] = [
+        os.path.join(row.image_dir, 'test') if row.fold == 'test' else os.path.join(row.image_dir, 'train')
+        for row
+        in df_mela.itertuples()
+    ]
+    df_mela['source_group'] = df_mela['image_dir'].apply(lambda x: x.rstrip('/').split('/')[-3])
+
+    for source in df_mela['source_group'].unique():
+        output_source_dir = os.path.join(output_dir, source)
+        for group in ['train', 'test']:
+            output_group_dir = os.path.join(output_source_dir, group)
+            if not os.path.exists(output_group_dir):
+                print(f'Generating output dir {output_group_dir}')
+                os.makedirs(output_group_dir)
+
+    # save config to disk
+    with open(os.path.join(output_dir, 'config.json'), 'w') as f:
+        json.dump(config, f)
+
+    # augmentor and dataset
+    aug = MelanomaAugmentor({'normalize': img_stats}, norm_cols=norm_cols)
+    dataset = train_utils.get_dataset('tile',
+                                      df_mela,
+                                      augmentor=aug,
+                                      **train_config['data']['params'])
+
+    for i in tqdm(range(len(dataset)), total=len(dataset)):
+        x, y = dataset[i]
+        df_idx = dataset.df.iloc[i]
+        if use_cuda:
+            x = x.cuda()
+        with torch.no_grad():
+            y_pred = model(x[None,...])
+        weights = model.weights
+        # print(df_idx['image_name'])
+        crop_coords = get_crop_coords(weights, img_size=img_size, pad=pad)
+        group = 'test' if df_idx['fold'] == 'test' else 'train'
+        with open(os.path.join(output_dir, df_idx['source_group'], group, f"{df_idx['image_name']}.json"), 'w') as f:
+            json.dump(crop_coords, f)
