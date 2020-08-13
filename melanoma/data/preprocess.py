@@ -271,7 +271,7 @@ def get_crop_coords(weights, img_size=224, pad=None):
         bbox = regionprops(binary)[0].bbox
         square_bbox = data_utils.get_square_bbox(bbox, img_size=img_size, pad=pad)
     else:
-        square_bbox = [0, img_size, 0, img_size]
+        square_bbox = [0, 0, img_size, img_size]
 
     crop_coords = {
         'h_0': int(square_bbox[0]),

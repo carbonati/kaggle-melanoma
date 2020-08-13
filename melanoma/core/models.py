@@ -157,27 +157,20 @@ class TileModel(nn.Module):
         self.encoder, self._in_features = model_utils.get_backbone(self._backbone,
                                                                   self._pretrained)
 
-        if self._pool_method == 'concat':
-            self._in_features *= 2
-        elif self._pool_method == 'concat_gem':
-            self._in_features *= 3
-
         self._pool_params['params']['in_channels'] = self._in_features
         self.pool_layer = melanoma_config.POOLING_MAP[self._pool_method](**self._pool_params['params'])
 
         # build output network
         if self._output_net_params is not None:
             modules = []
+            if self._output_net_params.get('bn'):
+                modules.append(nn.BatchNorm1d(self._in_features, **self._output_net_params['bn']))
             if self._output_net_params.get('dropout'):
                 modules.append(nn.Dropout(self._output_net_params['dropout']))
-            modules.append(nn.ReLU(inplace=True))
-            if self._output_net_params.get('bn'):
-                modules.append(nn.BatchNorm2d(self._in_features, **self._output_net_params['bn']))
             modules.append(nn.Linear(self._in_features, self._num_classes, bias=False))
             self.output_net = nn.Sequential(*modules)
         else:
             self.output_net = nn.Sequential(
-                # nn.ReLU(),
                 nn.Linear(self._in_features, self._num_classes, bias=False)
             )
         self.weights = None

@@ -113,7 +113,8 @@ def train(config):
         model = model.cuda()
 
         if config['distributed']:
-            model = convert_syncbn_model(model)
+            if config.get('sync_bn', True):
+                model = convert_syncbn_model(model)
             model = DistributedDataParallel(model, delay_allreduce=True)
         else:
             model = nn.DataParallel(model, device_ids).to(device)
