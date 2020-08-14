@@ -1,18 +1,20 @@
 input:
-  train: /workspace/data/train.csv
   test: /workspace/data/test.csv
-  model: /workspace/models/arch_exp_1/efficientnet-b7_bce_smth_300_8_concat_adam_one_cycle_20200807_1618
+  #train: /workspace/data/train.csv
+  #test: /workspace/data/test.csv
+  #model: /workspace/models/batch_sampler_fix_exp_1/efficientnet-b5_bce_smth_300_16_concat_adam_one_cycle_20200810_0203
 
 output:
   predictions: /workspace/predictions
 
 step: val_roc_auc_score
-eval_train: true
-eval_val: false
-eval_test: false
-num_bags: 1
-tta: false
-batch_size: 128
+# eval_train: true
+eval_val: false # jtrue
+eval_test: true
+eval_holdout: false # true
+num_bags: 20
+tta: true
+batch_size: 4096
 keep_prob: 1
 num_workers: 16
 random_state: 42069

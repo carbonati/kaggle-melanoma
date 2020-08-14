@@ -26,7 +26,8 @@ RUN apt-get update && apt-get install -y \
 RUN conda install cython -y && conda clean --all
 
 RUN pip install -U pip
-RUN conda install sklearn \
+RUN pip install --upgrade pip
+RUN pip install sklearn \
                   pandas \
                   tqdm \
                   Pillow \
