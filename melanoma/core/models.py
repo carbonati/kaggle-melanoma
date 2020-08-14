@@ -32,42 +32,46 @@ class BaseModel(nn.Module):
         self.encoder, in_features = model_utils.get_backbone(self._backbone,
                                                              self._pretrained)
         self.pool_layer = melanoma_config.POOLING_MAP[self._pool_method](**self._pool_params['params'])
-        # in_features = in_features * 2 if self._pool_method == 'concat' else in_features
+
+        if self._pool_method == 'concat':
+            in_features *= 2
+        elif self._pool_method == 'concat_gem':
+            in_features *= 3
 
         if self._output_net_params is not None:
-            #hidden_dim = self._output_net_params.get('hidden_dim', 512)
-            #modules = [
-            #    nn.Linear(in_features, hidden_dim, bias=False),
-            #    nn.ReLU()
-            #]
+            hidden_dim = self._output_net_params.get('hidden_dim', [])
+            if not isinstance(hidden_dim, list):
+                hidden_dim = [hidden_dim]
+            hidden_dim = [in_features] + hidden_dim + [self._num_classes]
+
+            dropout = self._output_net_params.get('dropout')
+            bn = self._output_net_params.get('bn')
 
             modules = []
-            if self._output_net_params.get('bn'):
-                modules.append(nn.BatchNorm2d(in_features,
-                                              **self._output_net_params['bn']))
-            modules.append(self.pool_layer)
-            if self._pool_method == 'concat':
-                in_features *= 2
-            elif self._pool_method == 'concat_gem':
-                in_features *= 3
-            if self._output_net_params.get('dropout'):
-                modules.append(nn.Dropout(self._output_net_params['dropout']))
+            for i in range(len(hidden_dim)-1):
+                if dropout is not None:
+                    if isinstance(dropout, list):
+                        modules.append(nn.Dropout(dropout[i]))
+                    else:
+                        modules.append(nn.Dropout(dropout))
+                if bn is not None:
+                    if isinstance(bn, list):
+                        modules.append(nn.BatchNorm1d(hidden_dim[i], **bn[i]))
+                    else:
+                        modules.append(nn.BatchNorm1d(hidden_dim[i], **bn))
 
-            modules.append(nn.Linear(in_features, self._num_classes, bias=False))
+                modules.append(nn.Linear(hidden_dim[i], hidden_dim[i+1], bias=False))
+                if i < (len(hidden_dim)-2):
+                    modules.append(nn.ReLU(inplace=True))
             self.output_net = nn.Sequential(*modules)
         else:
-            if self._pool_method == 'concat':
-                in_features *= 2
-            elif self._pool_method == 'concat_gem':
-                in_features *= 3
             self.output_net = nn.Sequential(
-                self.pool_layer,
                 nn.Linear(in_features, self._num_classes, bias=False)
             )
 
     def forward(self, x):
         x = self.encoder(x)
-        #x = self.pool_layer(x)
+        x = self.pool_layer(x)
         x = self.output_net(x)
         return x
 
@@ -96,31 +100,40 @@ class EfficientModel(nn.Module):
         self.encoder, in_features = model_utils.get_backbone(self._backbone,
                                                              self._pretrained)
         self.pool_layer = melanoma_config.POOLING_MAP[self._pool_method](**self._pool_params['params'])
-        # in_features = in_features * 2 if self._pool_method == 'concat' else in_features
+
+        if self._pool_method == 'concat':
+            in_features *= 2
+        elif self._pool_method == 'concat_gem':
+            in_features *= 3
 
         if self._output_net_params is not None:
-            #hidden_dim = self._output_net_params.get('hidden_dim', 512)
-            #modules = [
-            #    nn.Linear(in_features, hidden_dim, bias=False),
-            #    nn.ReLU()
-            #]
+            hidden_dim = self._output_net_params.get('hidden_dim', [])
+            if not isinstance(hidden_dim, list):
+                hidden_dim = [hidden_dim]
+            hidden_dim = [in_features] + hidden_dim + [self._num_classes]
+
+            dropout = self._output_net_params.get('dropout')
+            bn = self._output_net_params.get('bn')
 
             modules = []
-            if self._output_net_params.get('bn'):
-                modules.append(nn.BatchNorm2d(in_features, **self._output_net_params['bn']))
-            modules.append(self.pool_layer)
-            in_features = in_features * 2 if self._pool_method == 'concat' else in_features
-            if self._output_net_params.get('dropout'):
-                modules.append(nn.Dropout(self._output_net_params['dropout']))
-            modules.append(nn.Linear(in_features, self._num_classes, bias=False))
+            for i in range(len(hidden_dim)-1):
+                if dropout is not None:
+                    if isinstance(dropout, list):
+                        modules.append(nn.Dropout(dropout[i]))
+                    else:
+                        modules.append(nn.Dropout(dropout))
+                if bn is not None:
+                    if isinstance(bn, list):
+                        modules.append(nn.BatchNorm1d(hidden_dim[i], **bn[i]))
+                    else:
+                        modules.append(nn.BatchNorm1d(hidden_dim[i], **bn))
+
+                modules.append(nn.Linear(hidden_dim[i], hidden_dim[i+1], bias=False))
+                if i < (len(hidden_dim)-2):
+                    modules.append(nn.ReLU(inplace=True))
             self.output_net = nn.Sequential(*modules)
         else:
-            if self._pool_method == 'concat':
-                in_features *= 2
-            elif self._pool_method == 'concat_gem':
-                in_features *= 3
             self.output_net = nn.Sequential(
-                self.pool_layer,
                 nn.Linear(in_features, self._num_classes, bias=False)
             )
 
@@ -129,6 +142,7 @@ class EfficientModel(nn.Module):
 
     def forward(self, x):
         x = self.extract_features(x)
+        x = self.pool_layer(x)
         x = self.output_net(x)
         return x
 

@@ -125,9 +125,10 @@ def generate_df_scores(exp_dirs, df_panda=None):
                                     f'ckpt_{best_val_auc_step:04d}_*'
                                 )
                             )[0]
+                            ckpt = ckpt_filepath.split('/')[-1]
                         except:
-                            continue
-                        df_best['ckpt'] = ckpt_filepath.split('/')[-1]
+                            ckpt = None
+                        df_best['ckpt'] = ckpt
                         df_best = df_best.reset_index(drop=True)
                         df_best = pd.concat((df_best,
                                              pd.DataFrame(get_session_attr(config))), axis=1)
