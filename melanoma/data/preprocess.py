@@ -260,7 +260,7 @@ def prepare_v2_malignant(root, output):
 
 def get_crop_coords(weights, img_size=224, pad=None):
     num_tiles = int(np.sqrt(weights.shape[1]))
-    upscaled = cv2.resize(weights.view(num_tiles, num_tiles).detach().cpu().numpy(),
+    upscaled = cv2.resize(weights.reshape(num_tiles, num_tiles),
                           (img_size, img_size),
                           interpolation=cv2.INTER_LINEAR)
     binary = (upscaled > (upscaled.mean() + upscaled.std())).astype(np.uint8)
@@ -338,8 +338,8 @@ def generate_cropped_coords(config):
         json.dump(config, f)
 
     # augmentor and dataset
-    aug, _, _ = train_utils.get_augmentor(transforms={'normalize': img_stats},
-                                          norm_cols=norm_cols)
+    aug, _, _ = train_utils.get_augmentors(transforms={'normalize': img_stats},
+                                           norm_cols=norm_cols)
     dataset = train_utils.get_dataset('tile',
                                       df_mela,
                                       augmentor=aug,
@@ -352,8 +352,7 @@ def generate_cropped_coords(config):
             x = x.cuda()
         with torch.no_grad():
             y_pred = model(x[None,...])
-        weights = model.weights
-        # print(df_idx['image_name'])
+        weights = model.weights.detach().cpu().numpy()
         crop_coords = get_crop_coords(weights, img_size=img_size, pad=pad)
         group = 'test' if df_idx['fold'] == 'test' else 'train'
         with open(os.path.join(output_dir, df_idx['source_group'], group, f"{df_idx['image_name']}.json"), 'w') as f:
