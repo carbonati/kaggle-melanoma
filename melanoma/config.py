@@ -47,6 +47,7 @@ AUGMENTATION_MAP = {
     'hair': augmentation.AdvancedHairAugmentation,
     'gamma': albumentations.RandomGamma,
     'channel': albumentations.ChannelShuffle,
+    'constancy': augmentation.ColorConstancy,
 }
 
 ARCH_TO_PRETRAINED = {

@@ -1,3 +1,4 @@
+import apex
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -63,6 +64,7 @@ class BaseModel(nn.Module):
                 modules.append(nn.Linear(hidden_dim[i], hidden_dim[i+1], bias=False))
                 if i < (len(hidden_dim)-2):
                     modules.append(nn.ReLU(inplace=True))
+            # self.output_net = nn.ModuleList(modules)
             self.output_net = nn.Sequential(*modules)
         else:
             self.output_net = nn.Sequential(
@@ -72,6 +74,8 @@ class BaseModel(nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x = self.pool_layer(x)
+        #for l in self.output_net:
+        #    x = l(x)
         x = self.output_net(x)
         return x
 
@@ -198,3 +202,4 @@ class TileModel(nn.Module):
         x, self.weights = self.pool_layer(x)
         x = self.output_net(x)
         return x
+

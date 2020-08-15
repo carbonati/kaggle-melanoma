@@ -160,3 +160,40 @@ class AdvancedHairAugmentation(DualTransform):
             img[roi_ho:roi_ho + h_height, roi_wo:roi_wo + h_width] = dst
 
         return img
+
+
+class ColorConstancy(DualTransform):
+
+    def __init__(self,
+                 power=6,
+                 gamma=None,
+                 always_apply=False,
+                 p=0.5):
+        self._power = power
+        self._gamma = gamma
+        super(ColorConstancy, self).__init__(p, always_apply)
+
+    def apply(self, img, **params):
+        img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+        img_dtype = img.dtype
+
+        if self._gamma is not None:
+            img = img.astype('uint8')
+            look_up_table = np.ones((256 ,1), dtype='uint8') * 0
+            for i in range(256):
+                look_up_table[i][0] = 255*pow(i/255, 1/self._gamma)
+            img = cv2.LUT(img, look_up_table)
+
+        img = img.astype('float32')
+        img_power = np.power(img, self._power)
+        rgb_vec = np.power(np.mean(img_power, (0,1)), 1/self._power)
+        rgb_norm = np.sqrt(np.sum(np.power(rgb_vec, 2.0)))
+        rgb_vec = rgb_vec/rgb_norm
+        rgb_vec = 1/(rgb_vec*np.sqrt(3))
+        img = np.multiply(img, rgb_vec)
+
+        img = cv2.cvtColor(np.array(img), cv2.COLOR_BGR2RGB)
+        return img.astype(img_dtype)
+
+    def get_transform_init_args_names(self):
+        return ("power", "gamma")

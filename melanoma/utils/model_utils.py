@@ -9,6 +9,7 @@ import torch.nn as nn
 import pretrainedmodels
 from torchvision import models as _models
 from efficientnet_pytorch import EfficientNet as enet
+from timm.models import efficientnet as tf_efficientnet
 from core import models as melanoma_models
 import config as melanoma_config
 
@@ -134,6 +135,10 @@ def get_backbone(backbone, pretrained=True, **kwargs):
         else:
             encoder = enet.from_name(backbone, **kwargs)
         in_features = encoder._fc.in_features
+    elif backbone.startswith('tf_efficientnet'):
+        model = getattr(tf_efficientnet, backbone)(pretrained=pretrained, **kwargs)
+        encoder = nn.Sequential(*list(model.children())[:-2])
+        in_features = model.classifier.in_features
     elif backbone == 'inception_resnet_v2':
         pretrained = 'imagenet' if pretrained else None
         encoder = pretrainedmodels.inceptionresnetv2(pretrained=pretrained)
