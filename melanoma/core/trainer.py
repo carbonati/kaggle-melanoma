@@ -17,6 +17,8 @@ from utils.model_utils import load_model
 from utils import data_utils, train_utils
 from evaluation.metrics import compute_auc
 
+DEFAULT_METRICS = ['roc_auc_score']
+
 
 class Trainer:
     """Melanoma trainer."""
@@ -53,7 +55,7 @@ class Trainer:
         self._distributed = distributed
         self._fp_16 = fp_16
         self._save_every_n = save_every_n
-        self._is_cuda = next(self.model.parameters()).is_cuda
+        self._use_cuda = next(self.model.parameters()).is_cuda
 
         self._global_step = None
         self._best_loss = None
@@ -73,7 +75,7 @@ class Trainer:
         if self.logger is None:
             self.logger = sys.stdout
         if self._metrics is None:
-            self._metrics = ['roc_auc_score']
+            self._metrics = DEFAULT_METRICS
 
         self._reset()
 
@@ -87,7 +89,7 @@ class Trainer:
 
     @property
     def is_cuda(self):
-        return self._is_cuda
+        return self._use_cuda
 
     @property
     def device(self):
@@ -95,7 +97,7 @@ class Trainer:
 
     @device.setter
     def device(self, device):
-        self._is_cuda = getattr(device, 'type', device) == 'cuda'
+        self._use_cuda = getattr(device, 'type', device) == 'cuda'
 
     @property
     def global_step(self):
@@ -135,7 +137,8 @@ class Trainer:
     def _empty_cache(self):
         if self.optim is not None:
             self.optim.zero_grad()
-        torch.cuda.empty_cache()
+        if self._use_cuda:
+            torch.cuda.empty_cache()
 
     def _set_train_mode(self):
         self.model.train()
@@ -309,7 +312,7 @@ class Trainer:
         train_loss_sum = 0
         n_dense = 0
         train_dl.dataset.df['target'].dtype
-        targets = []
+
         for i, (x, y) in enumerate(train_dl):
             if y.ndim == 1:
                 y = y[..., None]
@@ -318,7 +321,7 @@ class Trainer:
             else:
                 y = y.float()
 
-            if self._is_cuda:
+            if self._use_cuda:
                 x = x.cuda(self.device)
                 y = y.cuda(self.device)
 
@@ -327,7 +330,7 @@ class Trainer:
                     x,
                     y,
                     alpha=self.reg_params['mixup']['alpha'],
-                    use_cuda=self._is_cuda
+                    use_cuda=self._use_cuda
                 )
                 y_pred, loss = self.train_on_batch(x_mixed, y, y_b=y_mixed, lam=lam)
             elif self._apply_cutmix and self.reg_params['cutmix'].get('warmup', 0) < self.global_step:
@@ -335,7 +338,7 @@ class Trainer:
                     x,
                     y,
                     beta=self.reg_params['cutmix']['beta'],
-                    use_cuda=self._is_cuda
+                    use_cuda=self._use_cuda
                 )
                 y_pred, loss = self.train_on_batch(x_cut, y, y_b=y_cut, lam=lam)
             else:
@@ -354,14 +357,8 @@ class Trainer:
             template_str += f' - auc_score : {train_score_sum/n_dense if n_dense > 0 else 0:.4f}\r'
             sys.stdout.write(template_str)
             sys.stdout.flush()
-            targets.append(y.data.cpu().numpy().flatten())
-        #print(targets[0])
-        #print(np.array(list(map(sum, targets))))
-        #props = [sum(targets[i])/len(targets[i]) for i in range(len(targets))]
-        #print(f'mean   : {np.mean(props):.4f}')
-        #print(f'std    : {np.std(props):.4f}')
-        #print(f'median : {np.median(props):.4f}')
-        if self._is_cuda:
+
+        if self._use_cuda:
             torch.cuda.empty_cache()
 
         self._history['loss'].append(train_loss_sum / num_batches)
@@ -377,12 +374,12 @@ class Trainer:
             for i, x in enumerate(dl):
                 if isinstance(x, (list, tuple)) and len(x) == 2:
                     x = x[0]
-                if self._is_cuda:
+                if self._use_cuda:
                     x = x.cuda(self.device)
                 y_pred = self.predict_on_batch(x)
                 preds.append(y_pred)
 
-        if self._is_cuda:
+        if self._use_cuda:
             torch.cuda.empty_cache()
 
         return torch.cat(preds)
@@ -434,7 +431,7 @@ class BlendTrainer(Trainer):
             for idx, batch_data in enumerate(batches):
                 if idx == 0:
                     y = batch_data[1]
-                if self._is_cuda:
+                if self._use_cuda:
                     x.append(batch_data[0].cuda(self.device))
                     if idx == 0:
                         y = y.cuda()
@@ -459,7 +456,7 @@ class BlendTrainer(Trainer):
             sys.stdout.flush()
             i += 1
 
-        if self._is_cuda:
+        if self._use_cuda:
             torch.cuda.empty_cache()
 
         self._history['loss'].append(train_loss_sum / num_batches)
@@ -475,15 +472,13 @@ class BlendTrainer(Trainer):
                 xa = xa[0]
             if isinstance(xb, (list, tuple)) and len(xb) == 2:
                 xb = xb[0]
-            if self._is_cuda:
+            if self._use_cuda:
                 xa = xa.cuda(self.device)
                 xb = xb.cuda(self.device)
             y_pred = self.predict_on_batch([xa, xb])
             preds.append(y_pred)
 
-        if self._is_cuda:
-            torch.cuda.empty_cache()
-
+        self._empty_cache()
         return torch.cat(preds)
 
     def predict(self, dl):
@@ -497,12 +492,11 @@ class BlendTrainer(Trainer):
                 for x_batch in batches:
                     if isinstance(x_batch, (list, tuple)) and len(x_batch) == 2:
                         x_batch = x_batch[0]
-                    if self._is_cuda:
+                    if self._use_cuda:
                         x_batch = x_batch.cuda(self.device)
                     x.append(x_batch)
                 y_pred = self.predict_on_batch(x)
                 preds.append(y_pred)
 
-        if self._is_cuda:
-            torch.cuda.empty_cache()
+        self._empty_cache()
         return torch.cat(preds)

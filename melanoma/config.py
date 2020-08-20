@@ -95,15 +95,6 @@ POOLING_MAP = {
     'attention': layers.AttentionPool1d,
 }
 
-#POSTPROCESSOR_MAP = {
-#    'optimized_rounder': postprocess.OptimizedRounder
-#}
-
-ACTIVATION_MAP = {
-    'relu': nn.ReLU,
-    'mish': layers.Mish
-}
-
 ANATOM_MAP = {
     'anterior torso': 'torso',
     'lateral torso': 'torso',

@@ -10,7 +10,7 @@ import config as melanoma_config
 
 
 class BaseModel(nn.Module):
-    """melanoma model."""
+    """melanoma base model."""
     def __init__(self,
                  backbone,
                  num_classes=1,
@@ -64,7 +64,6 @@ class BaseModel(nn.Module):
                 modules.append(nn.Linear(hidden_dim[i], hidden_dim[i+1], bias=False))
                 if i < (len(hidden_dim)-2):
                     modules.append(nn.ReLU(inplace=True))
-            # self.output_net = nn.ModuleList(modules)
             self.output_net = nn.Sequential(*modules)
         else:
             self.output_net = nn.Sequential(
@@ -74,72 +73,15 @@ class BaseModel(nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x = self.pool_layer(x)
-        #for l in self.output_net:
-        #    x = l(x)
         x = self.output_net(x)
         return x
 
 
-class EfficientModel(nn.Module):
-    """melanoma model."""
-    def __init__(self,
-                 backbone,
-                 num_classes=1,
-                 output_net_params=None,
-                 pool_params=None,
-                 pretrained=True):
-        super().__init__()
-        self._backbone = backbone
-        self._num_classes = num_classes
-        self._pool_params = pool_params
-        self._output_net_params = output_net_params
-        if self._pool_params is None:
-            self._pool_method = 'concat'
-            self._pool_params = {'params': {}}
-        else:
-            self._pool_method = self._pool_params['method']
-            self._pool_params['params'] = self._pool_params.get('params', {})
-        self._pretrained = pretrained
+class EfficientModel(BaseModel):
+    """melanoma model (efficientnet)."""
 
-        self.encoder, in_features = model_utils.get_backbone(self._backbone,
-                                                             self._pretrained)
-        self.pool_layer = melanoma_config.POOLING_MAP[self._pool_method](**self._pool_params['params'])
-
-        if self._pool_method == 'concat':
-            in_features *= 2
-        elif self._pool_method == 'concat_gem':
-            in_features *= 3
-
-        if self._output_net_params is not None:
-            hidden_dim = self._output_net_params.get('hidden_dim', [])
-            if not isinstance(hidden_dim, list):
-                hidden_dim = [hidden_dim]
-            hidden_dim = [in_features] + hidden_dim + [self._num_classes]
-
-            dropout = self._output_net_params.get('dropout')
-            bn = self._output_net_params.get('bn')
-
-            modules = []
-            for i in range(len(hidden_dim)-1):
-                if dropout is not None:
-                    if isinstance(dropout, list):
-                        modules.append(nn.Dropout(dropout[i]))
-                    else:
-                        modules.append(nn.Dropout(dropout))
-                if bn is not None:
-                    if isinstance(bn, list):
-                        modules.append(nn.BatchNorm1d(hidden_dim[i], **bn[i]))
-                    else:
-                        modules.append(nn.BatchNorm1d(hidden_dim[i], **bn))
-
-                modules.append(nn.Linear(hidden_dim[i], hidden_dim[i+1], bias=False))
-                if i < (len(hidden_dim)-2):
-                    modules.append(nn.ReLU(inplace=True))
-            self.output_net = nn.Sequential(*modules)
-        else:
-            self.output_net = nn.Sequential(
-                nn.Linear(in_features, self._num_classes, bias=False)
-            )
+    def __init__(self, backbone, **kwargs):
+        super(EfficientModel, self).__init__(backbone, **kwargs)
 
     def extract_features(self, x):
         return self.encoder.extract_features(x)
